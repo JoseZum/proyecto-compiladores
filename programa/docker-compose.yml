@@ -1,0 +1,12 @@
+services:
+  compilador:
+    build: .
+    container_name: compiladores_pp1
+    volumes:
+      - .:/app/proyecto
+    working_dir: /app/proyecto
+    stdin_open: true  # Keep stdin open for interactive commands
+    tty: true         # Allocate a pseudo-TTY
+    environment:
+      - TERM=xterm-256color
+    command: bash -c "help && exec bash"
