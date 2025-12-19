@@ -11,13 +11,6 @@ docker compose exec compilador bash
 ## Probar Lexer
 
 ```bash
-# Dentro del contenedor
-chmod +x test-lexer.sh
-./test-lexer.sh test.txt
-```
-
-O manualmente:
-```bash
 jflex lexer.flex
 javac Lexer.java TestLexer.java
 java TestLexer test.txt
@@ -47,7 +40,9 @@ docker compose up -d --build
 docker compose exec compilador bash
 
 # 2. Dentro del contenedor - Probar solo lexer
-./test-lexer.sh test.txt
+jflex lexer.flex
+javac Lexer.java TestLexer.java
+java TestLexer test.txt
 
 # 3. Build completo (lexer + parser)
 build
