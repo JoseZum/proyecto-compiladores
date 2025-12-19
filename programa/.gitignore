@@ -1,0 +1,25 @@
+# Archivos compilados
+*.class
+
+# Archivos generados por JFlex
+Lexer.java
+
+# Archivos generados por CUP
+parser.java
+sym.java
+
+# Archivos de backup
+*.java~
+*~
+
+# Archivos de log
+*.log
+
+# Directorios del IDE
+.vscode/
+.idea/
+*.iml
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
