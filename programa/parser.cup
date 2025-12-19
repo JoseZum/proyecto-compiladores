@@ -7,9 +7,19 @@ parser code {:
 :}
 
 /* Terminales */
-terminal WORLD, ENDL, INT_TYPE, ASSIGN;
-terminal Integer INT_LIT;
-terminal String ID;
+terminal WORLD, ENDL, ASSIGN;
+terminal BLOCK_OPEN, BLOCK_CLOSE;
+terminal GIFT, INT, FLOAT, BOOLEAN, CHAR, STRING, LOCAL, COAL_TYPE;
+terminal DECIDE, OF, ELSE, LOOP, EXIT, WHEN, FOR, BREAK, RETURN;
+terminal PARENTHESIS_OPEN, PARENTHESIS_CLOSE;
+terminal ARRAY_OPEN, ARRAY_CLOSE, COMMA;
+terminal PLUS, MINUS, TIMES, DIV_INT, DIV, MODULE, POWER;
+terminal LESS_OR_EQ_THAN, LESS_THAN, MORE_OR_EQ_THAN, MORE_THAN, EQUALS, DIFFERENT;
+terminal AND, OR, NOT;
+terminal DECREMENT, INCREMENT;
+terminal SHOW, GET;
+terminal String ID, NAVIDAD;
+terminal String INT_LIT, FLOAT_LIT, BOOLEAN_LIT, CHAR_LIT, STRING_LIT;
 
 /* No terminales */
 non terminal program;
@@ -21,5 +31,5 @@ start with program;
 program ::= WORLD statement
           ;
 
-statement ::= INT_TYPE ID ASSIGN INT_LIT ENDL
+statement ::= INT ID ASSIGN INT_LIT ENDL
             ;

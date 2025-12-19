@@ -83,3 +83,9 @@ docker compose up -d --build --force-recreate
 # Ver logs
 docker compose logs -f
 ```
+
+# Estos son los que funcionan 
+docker compose up -d --build
+docker compose exec compilador bash
+build
+java TestLexer test.txt
