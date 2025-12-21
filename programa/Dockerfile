@@ -2,28 +2,28 @@ FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
-# Install required tools
+# Instalar las herramientas
 RUN apt-get update && apt-get install -y \
     vim \
     nano \
     tree \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install JFlex from local file
+# Copiar los archivos de JFlez
 COPY jflex-1.9.1.tar.gz /tmp/
 RUN tar xzf /tmp/jflex-1.9.1.tar.gz -C /app \
     && rm /tmp/jflex-1.9.1.tar.gz
 
 ENV PATH="/app/jflex-1.9.1/bin:${PATH}"
 
-# Copy and install CUP from local file
+# Copiar los archivos de Cup
 COPY java-cup-bin-11b-20160615.tar.gz /tmp/
 RUN tar xzf /tmp/java-cup-bin-11b-20160615.tar.gz -C /app \
     && rm /tmp/java-cup-bin-11b-20160615.tar.gz
 
 ENV CLASSPATH="/app/java-cup-11b.jar:/app/java-cup-11b-runtime.jar:."
 
-# Create convenience scripts
+# Crear los archivos
 RUN echo '#!/bin/bash\n\
 echo "========================================"\n\
 echo "Compiladores - Proyecto 1"\n\
@@ -45,7 +45,7 @@ echo "Current directory: $(pwd)"\n\
 echo "========================================"\n\
 ' > /usr/local/bin/help && chmod +x /usr/local/bin/help
 
-# Create build script
+# Crear el archivo de construccion
 RUN echo '#!/bin/bash\n\
 set -e\n\
 echo "Building lexer..."\n\
@@ -75,7 +75,7 @@ echo ""\n\
 echo "Build complete!"\n\
 ' > /usr/local/bin/build && chmod +x /usr/local/bin/build
 
-# Create clean script
+# Crear el archivo clean
 RUN echo '#!/bin/bash\n\
 echo "Cleaning generated files..."\n\
 rm -f *.class\n\
@@ -85,5 +85,5 @@ rm -f sym.java\n\
 echo "✓ Clean complete"\n\
 ' > /usr/local/bin/clean && chmod +x /usr/local/bin/clean
 
-# Display help on container start
+# ayuda
 CMD ["bash", "-c", "help && exec bash"]

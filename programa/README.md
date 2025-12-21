@@ -23,7 +23,7 @@ java TestLexer test.txt
 build
 
 # Ejecutar con archivo de prueba
-java Main test.txt
+java TestLexer test.txt 
 ```
 
 ## Limpiar
@@ -48,44 +48,8 @@ java TestLexer test.txt
 build
 
 # 4. Ejecutar
-java Main test.txt
+java TestLexer test.txt 
 
 # 5. Limpiar si necesitas recompilar
 clean
 ```
-
-## Comandos Individuales
-
-```bash
-# Generar lexer
-jflex lexer.flex
-
-# Generar parser
-java java_cup.Main parser.cup
-
-# Compilar
-javac *.java
-
-# Ejecutar
-java Main test.txt
-java TestLexer test.txt
-```
-
-## Docker - Otros Comandos
-
-```powershell
-# Detener
-docker compose down
-
-# Reconstruir
-docker compose up -d --build --force-recreate
-
-# Ver logs
-docker compose logs -f
-```
-
-# Estos son los que funcionan 
-docker compose up -d --build
-docker compose exec compilador bash
-build
-java TestLexer test.txt

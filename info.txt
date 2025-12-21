@@ -16,7 +16,7 @@ Número de proyecto programado:
 Proyecto Programado #1
 
 Fecha de entrega:
-DD/MM/2025
+21/12/2025
 
 Estatus de la entrega:
 Superior

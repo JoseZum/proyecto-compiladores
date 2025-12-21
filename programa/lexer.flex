@@ -55,6 +55,7 @@ import java_cup.runtime.*;
 "," { return new Symbol(sym.COMMA, yyline+1, yycolumn+1, yytext()); }
 
 /* Operadores */
+/* Aritmeticas */
 "+" { return new Symbol(sym.PLUS, yyline+1, yycolumn+1, yytext()); }
 "-" { return new Symbol(sym.MINUS, yyline+1, yycolumn+1, yytext()); }
 "*" { return new Symbol(sym.TIMES, yyline+1, yycolumn+1, yytext()); }
@@ -70,8 +71,6 @@ import java_cup.runtime.*;
 ">" { return new Symbol(sym.MORE_THAN, yyline+1, yycolumn+1, yytext()); }
 "==" { return new Symbol(sym.EQUALS, yyline+1, yycolumn+1, yytext()); }
 "!=" { return new Symbol(sym.DIFFERENT, yyline+1, yycolumn+1, yytext()); }
-
-/* Expresiones Aritmeticas */
 
 /* Logicos */
 "@" { return new Symbol(sym.AND, yyline+1, yycolumn+1, yytext()); }
@@ -102,7 +101,5 @@ import java_cup.runtime.*;
 
 /* Errores */
 . { System.err.println("Caracter no reconocido en línea " + (yyline+1) + ": " + yytext()); }
-
-
 }
 

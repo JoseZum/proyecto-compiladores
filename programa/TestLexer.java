@@ -74,21 +74,21 @@ public class TestLexer {
 
             // Imprimir resumen en consola y archivo
             System.out.println(separator);
-            System.out.println("✓ Total de tokens: " + tokenCount);
-            System.out.println("✓ Análisis léxico completado exitosamente");
-            System.out.println("✓ Tokens guardados en: tokens_output.txt");
+            System.out.println("Total de tokens: " + tokenCount);
+            System.out.println("Análisis léxico completado exitosamente");
+            System.out.println("Tokens guardados en: tokens_output.txt");
 
             fileWriter.println(separator);
             fileWriter.println("Total de tokens: " + tokenCount);
             fileWriter.println("Análisis completado exitosamente");
 
         } catch (FileNotFoundException e) {
-            System.err.println("✗ Error: Archivo no encontrado - " + e.getMessage());
+            System.err.println("Error: Archivo no encontrado - " + e.getMessage());
         } catch (IOException e) {
-            System.err.println("✗ Error de lectura/escritura: " + e.getMessage());
+            System.err.println("Error de lectura/escritura: " + e.getMessage());
             e.printStackTrace();
         } catch (Exception e) {
-            System.err.println("✗ Error durante el análisis léxico:");
+            System.err.println("Error durante el análisis léxico:");
             e.printStackTrace();
         } finally {
             // Cerrar el archivo de salida
@@ -99,11 +99,11 @@ public class TestLexer {
     }
     
     /**
-     * Convierte el código del símbolo a su nombre legible
+     * Convierte el codigo del simbolo a su nombre legible
      */
     private static String getTokenName(int symCode) {
         try {
-            // Usar reflexión para obtener el nombre del token desde la clase sym
+            // Usar reflexion para obtener el nombre del token desde la clase sym
             java.lang.reflect.Field[] fields = sym.class.getDeclaredFields();
             for (java.lang.reflect.Field field : fields) {
                 if (field.getType() == int.class) {
@@ -114,7 +114,7 @@ public class TestLexer {
                 }
             }
         } catch (Exception e) {
-            // Si falla, retornar el código
+            // Si falla, retornar el codigo
         }
         return "SYM_" + symCode;
     }
