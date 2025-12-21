@@ -21,6 +21,7 @@ import java_cup.runtime.*;
 "!" { return new Symbol(sym.BLOCK_CLOSE, yyline+1, yycolumn+1, yytext()); }
 
 /* Palabras clave */
+"navidad" { return new Symbol(sym.NAVIDAD, yyline+1, yycolumn+1, yytext()); }
 "gift" { return new Symbol(sym.GIFT, yyline+1, yycolumn+1, yytext()); }
 "world" { return new Symbol(sym.WORLD, yyline+1, yycolumn+1, yytext()); }
 "int" { return new Symbol(sym.INT, yyline+1, yycolumn+1, yytext()); }
@@ -33,16 +34,18 @@ import java_cup.runtime.*;
 
 /* Estructuras de Control */
 "decide" { return new Symbol(sym.DECIDE, yyline+1, yycolumn+1, yytext()); }
-"of"     { return new Symbol(sym.OF, yyline+1, yycolumn+1, yytext()); }
-"else"   { return new Symbol(sym.ELSE, yyline+1, yycolumn+1, yytext()); }
-"loop"   { return new Symbol(sym.LOOP, yyline+1, yycolumn+1, yytext()); }
-"exit"   { return new Symbol(sym.EXIT, yyline+1, yycolumn+1, yytext()); }
-"when"   { return new Symbol(sym.WHEN, yyline+1, yycolumn+1, yytext()); }
-"for"    { return new Symbol(sym.FOR, yyline+1, yycolumn+1, yytext()); }
-"break"  { return new Symbol(sym.BREAK, yyline+1, yycolumn+1, yytext()); }
+"of" { return new Symbol(sym.OF, yyline+1, yycolumn+1, yytext()); }
+"end" { return new Symbol(sym.END, yyline+1, yycolumn+1, yytext()); }
+"else" { return new Symbol(sym.ELSE, yyline+1, yycolumn+1, yytext()); }
+"loop" { return new Symbol(sym.LOOP, yyline+1, yycolumn+1, yytext()); }
+"exit" { return new Symbol(sym.EXIT, yyline+1, yycolumn+1, yytext()); }
+"when" { return new Symbol(sym.WHEN, yyline+1, yycolumn+1, yytext()); }
+"for" { return new Symbol(sym.FOR, yyline+1, yycolumn+1, yytext()); }
+"break" { return new Symbol(sym.BREAK, yyline+1, yycolumn+1, yytext()); }
 "return" { return new Symbol(sym.RETURN, yyline+1, yycolumn+1, yytext()); }
 
 /* Simbolos especiales */
+"->" { return new Symbol(sym.ARROW, yyline+1, yycolumn+1, yytext()); }
 "endl" { return new Symbol(sym.ENDL, yyline+1, yycolumn+1, yytext()); }
 "=" { return new Symbol(sym.ASSIGN, yyline+1, yycolumn+1, yytext()); }
 "¿" { return new Symbol(sym.PARENTHESIS_OPEN, yyline+1, yycolumn+1, yytext()); }
@@ -96,9 +99,6 @@ import java_cup.runtime.*;
 
 /* Espacio en blanco */
 [ \t\r\n]+ { /* Ignore whitespace */ }
-
-/* Main */
-"navidad" { return new Symbol(sym.NAVIDAD, yyline+1, yycolumn+1, yytext()); }
 
 /* Errores */
 . { System.err.println("Caracter no reconocido en línea " + (yyline+1) + ": " + yytext()); }
