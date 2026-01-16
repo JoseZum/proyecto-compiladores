@@ -18,7 +18,6 @@ terminal DECREMENT, INCREMENT;
 terminal SHOW, GET;
 terminal INT_LIT, FLOAT_LIT, BOOLEAN_LIT, CHAR_LIT, STRING_LIT;
 terminal ID;
-terminal LINE_COMMENT, BLOCK_COMMENT;
 
 /* ------------NO TERMINALES------------ */
 
@@ -40,7 +39,6 @@ non terminal expr_aritm, term, power, factor;
 non terminal expr_relacional, expresion_rel, operador_rel;
 non terminal expr_logica, expr_and, expr_not, expr_bool;
 non terminal io, show, show_arg, get, get_target;
-non terminal comentario;
 
 /* ------------INICIO------------ */
 
@@ -281,8 +279,4 @@ get_target ::= ID
              | acceso_arreglo
              ;
 
-/* -----comentarios----- */
 
-comentario ::= LINE_COMMENT
-             | BLOCK_COMMENT
-             ;

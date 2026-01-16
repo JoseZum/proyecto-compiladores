@@ -13,10 +13,10 @@ Número de carnet de los estudiantes:
 2023029575
 
 Número de proyecto programado:
-Proyecto Programado #1
+Proyecto Programado #2
 
 Fecha de entrega:
-21/12/2025
+17/01/2025
 
 Estatus de la entrega:
 Superior
