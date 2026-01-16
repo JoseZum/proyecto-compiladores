@@ -77,7 +77,8 @@ param ::= tipo ID ;
 
 main ::= COAL_TYPE NAVIDAD PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque ;
 
-funcion ::= GIFT tipo ID PARENTHESIS_OPEN params PARENTHESIS_CLOSE bloque ;
+funcion ::= GIFT tipo ID PARENTHESIS_OPEN params PARENTHESIS_CLOSE bloque |
+            GIFT tipo ID PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque;
 
 /* -----Declaraciones----- */
 
@@ -110,7 +111,6 @@ sentencia ::= asignacion_sentencia
             | asignacion_elemento
             | io
             | BREAK ENDL
-            | comentario
             | RETURN expresion ENDL
             ;
 
