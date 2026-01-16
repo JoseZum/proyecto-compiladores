@@ -6,31 +6,283 @@ parser code {:
     }
 :}
 
-/* Terminales */
-terminal WORLD, ENDL, ASSIGN;
-terminal BLOCK_OPEN, BLOCK_CLOSE;
-terminal GIFT, INT, FLOAT, BOOLEAN, CHAR, STRING, LOCAL, COAL_TYPE;
-terminal DECIDE, OF, ELSE, LOOP, EXIT, WHEN, FOR, BREAK, RETURN;
-terminal ARROW, END;
-terminal PARENTHESIS_OPEN, PARENTHESIS_CLOSE;
-terminal ARRAY_OPEN, ARRAY_CLOSE, COMMA;
+/* ------------TERMINALES------------ */
+
+terminal BLOCK_OPEN, BLOCK_CLOSE, NAVIDAD, GIFT, WORLD, INT, FLOAT, BOOLEAN, CHAR, STRING, LOCAL, COAL_TYPE;
+terminal DECIDE, OF, END, ELSE, LOOP, EXIT, WHEN, FOR, BREAK, RETURN;
+terminal ARROW, ENDL, ASSIGN, PARENTHESIS_OPEN, PARENTHESIS_CLOSE, ARRAY_OPEN, ARRAY_CLOSE, COMMA;
 terminal PLUS, MINUS, TIMES, DIV_INT, DIV, MODULE, POWER;
 terminal LESS_OR_EQ_THAN, LESS_THAN, MORE_OR_EQ_THAN, MORE_THAN, EQUALS, DIFFERENT;
 terminal AND, OR, NOT;
 terminal DECREMENT, INCREMENT;
 terminal SHOW, GET;
-terminal String ID, NAVIDAD;
-terminal String INT_LIT, FLOAT_LIT, BOOLEAN_LIT, CHAR_LIT, STRING_LIT;
+terminal INT_LIT, FLOAT_LIT, BOOLEAN_LIT, CHAR_LIT, STRING_LIT;
+terminal ID;
+terminal LINE_COMMENT, BLOCK_COMMENT;
 
-/* No terminales */
-non terminal program;
-non terminal statement;
+/* ------------NO TERMINALES------------ */
 
-/* Gramática */
-start with program;
+non terminal programa, funciones, funcion, main;
+non terminal tipo, literal, alcance;
+non terminal params, param;
+non terminal creacion, creacion_sentencia, asignacion, asignacion_sentencia;
+non terminal unario;
+non terminal sentencias, sentencia, bloque;
+non terminal estructura, for_init, for, loop, decide_of;
+non terminal casos, caso;
+non terminal arreglo, dim, decl_arreglo, creacion_arreglo;
+non terminal asignacion_elemento, acceso_arreglo;
+non terminal elementos, fila, filas, arreglo_init;
+non terminal tipo_arreglo, lit_array;
+non terminal llamada, args;
+non terminal expresion;
+non terminal expr_aritm, term, power, factor;
+non terminal expr_relacional, expresion_rel, operador_rel;
+non terminal expr_logica, expr_and, expr_not, expr_bool;
+non terminal io, show, show_arg, get, get_target;
+non terminal comentario;
 
-program ::= WORLD statement
+/* ------------INICIO------------ */
+
+start with programa;
+
+/* ------------PRODUCCIONES------------ */
+
+programa ::= funciones main
+           | main
+           ;
+
+funciones ::= funciones funcion
+            | funcion
+            ;
+
+/* -----Datos----- */
+
+tipo ::= INT | FLOAT | BOOLEAN | CHAR | STRING ;
+
+literal ::= INT_LIT
+          | FLOAT_LIT
+          | BOOLEAN_LIT
+          | CHAR_LIT
+          | STRING_LIT
           ;
 
-statement ::= INT ID ASSIGN INT_LIT ENDL
+alcance ::= WORLD | LOCAL ;
+
+/* -----funciones----- */
+
+params ::= params COMMA param
+         | param
+         ;
+
+param ::= tipo ID ;
+
+main ::= COAL_TYPE NAVIDAD PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque ;
+
+funcion ::= GIFT tipo ID PARENTHESIS_OPEN params PARENTHESIS_CLOSE bloque ;
+
+/* -----Declaraciones----- */
+
+creacion ::= alcance tipo ID
+           | asignacion
+           ;
+
+creacion_sentencia ::= creacion ENDL ;
+
+asignacion ::= alcance tipo ID ASSIGN expresion ;
+
+asignacion_sentencia ::= asignacion ENDL ;
+
+unario ::= INCREMENT ID
+         | DECREMENT ID
+         | INCREMENT acceso_arreglo
+         | DECREMENT acceso_arreglo
+         ;
+
+/* -----sentencias----- */
+
+sentencias ::= sentencias sentencia
+             | sentencia
+             ;
+
+sentencia ::= asignacion_sentencia
+            | creacion_sentencia
+            | estructura
+            | expresion ENDL
+            | asignacion_elemento
+            | io
+            | BREAK ENDL
+            | comentario
+            | RETURN expresion ENDL
             ;
+
+bloque ::= BLOCK_OPEN sentencias BLOCK_CLOSE
+         | BLOCK_OPEN BLOCK_CLOSE
+         ;
+
+/* -----control----- */
+
+estructura ::= for
+             | loop
+             | decide_of
+             | arreglo
+             ;
+
+for_init ::= asignacion
+           | creacion
+           ;
+
+for ::= FOR PARENTHESIS_OPEN for_init ENDL expr_logica ENDL unario PARENTHESIS_CLOSE bloque ;
+
+loop ::= LOOP bloque EXIT WHEN expr_logica ENDL END LOOP ENDL ;
+
+casos ::= casos caso
+        | caso
+        ;
+
+caso ::= expr_logica ARROW bloque ;
+
+decide_of ::= DECIDE OF casos END DECIDE ENDL
+            | DECIDE OF casos ELSE bloque END DECIDE ENDL
+            ;
+
+/* -----arreglos----- */
+
+arreglo ::= creacion_arreglo ;
+
+dim ::= ARRAY_OPEN INT_LIT ARRAY_CLOSE ARRAY_OPEN INT_LIT ARRAY_CLOSE ;
+
+decl_arreglo ::= tipo ID dim ;
+
+creacion_arreglo ::= alcance decl_arreglo ENDL
+                   | alcance decl_arreglo ASSIGN arreglo_init ENDL
+                   ;
+
+asignacion_elemento ::= acceso_arreglo ASSIGN lit_array ENDL ;
+
+acceso_arreglo ::= ID ARRAY_OPEN expresion ARRAY_CLOSE ARRAY_OPEN expresion ARRAY_CLOSE ;
+
+elementos ::= lit_array
+            | elementos COMMA lit_array
+            ;
+
+fila ::= BLOCK_OPEN elementos BLOCK_CLOSE ;
+
+filas ::= fila
+        | filas COMMA fila
+        ;
+
+arreglo_init ::= BLOCK_OPEN filas BLOCK_CLOSE ;
+
+
+lit_array ::= INT_LIT | CHAR_LIT ;
+
+/* -----llamadas----- */
+
+llamada ::= ID PARENTHESIS_OPEN args PARENTHESIS_CLOSE
+          | ID PARENTHESIS_OPEN PARENTHESIS_CLOSE
+          ;
+
+args ::= args COMMA expresion
+       | expresion
+       ;
+
+/* -----Expresiones----- */
+
+expresion ::= literal
+            | ID
+            | expr_aritm
+            | expr_relacional
+            | expr_logica
+            | acceso_arreglo
+            | llamada
+            ;
+
+/* -----aritmeicas----- */
+
+expr_aritm ::= expr_aritm PLUS term
+             | expr_aritm MINUS term
+             | term
+             ;
+
+term ::= term TIMES power
+       | term DIV power
+       | term DIV_INT power
+       | term MODULE power
+       | power
+       ;
+
+power ::= factor POWER power
+        | factor
+        ;
+
+factor ::= literal
+         | ID
+         | acceso_arreglo
+         | llamada
+         | MINUS factor
+         | unario
+         | PARENTHESIS_OPEN expresion PARENTHESIS_CLOSE
+         ;
+
+/* -----relacionales----- */
+
+expr_relacional ::= expresion_rel operador_rel expresion_rel ;
+
+expresion_rel ::= expr_aritm
+                | BOOLEAN_LIT
+                | ID
+                ;
+
+operador_rel ::= LESS_THAN
+               | LESS_OR_EQ_THAN
+               | MORE_THAN
+               | MORE_OR_EQ_THAN
+               | EQUALS
+               | DIFFERENT
+               ;
+
+/* -----logicas----- */
+
+expr_logica ::= expr_logica OR expr_and
+              | expr_and
+              ;
+
+expr_and ::= expr_and AND expr_not
+           | expr_not
+           ;
+
+expr_not ::= NOT expr_not
+           | expr_bool
+           ;
+
+expr_bool ::= BOOLEAN_LIT
+            | ID
+            | expr_relacional
+            | PARENTHESIS_OPEN expr_logica PARENTHESIS_CLOSE
+            ;
+
+/* -----I/O----- */
+
+io ::= show
+     | get
+     ;
+
+show ::= SHOW PARENTHESIS_OPEN show_arg PARENTHESIS_CLOSE ENDL ;
+
+show_arg ::= literal
+           | ID
+           | acceso_arreglo
+           ;
+
+get ::= GET PARENTHESIS_OPEN get_target PARENTHESIS_CLOSE ENDL ;
+
+get_target ::= ID
+             | acceso_arreglo
+             ;
+
+/* -----comentarios----- */
+
+comentario ::= LINE_COMMENT
+             | BLOCK_COMMENT
+             ;
