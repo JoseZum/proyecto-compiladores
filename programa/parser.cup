@@ -1,10 +1,214 @@
+package ParserLexer;
+
 import java_cup.runtime.*;
+
+/* Conectar CUP con lexer JFlex */
+scan with {: return ((Lexer)scanner).next_token(); :};
 
 parser code {:
     public void syntax_error(Symbol s) {
         System.err.println("Error de sintaxis en línea " + s.left);
     }
 :}
+
+parser code {:
+
+    /* ---- AST root para que el main pueda leerlo si quiere ---- */
+    public Nodo raizAST = null;
+
+    /* ===================== TABLA DE SIMBOLOS ===================== */
+    static class SymInfo {
+        String kind;      // VAR, ARR, PARAM, FUNC, MAIN
+        String type;      // int/float/boolean/char/string/coal
+        Integer dim1;     // para arreglos
+        Integer dim2;     // para arreglos
+        int line, col;
+
+        SymInfo(String kind, String type, int line, int col) {
+            this.kind = kind;
+            this.type = type;
+            this.line = line;
+            this.col = col;
+        }
+
+        SymInfo(String kind, String type, int dim1, int dim2, int line, int col) {
+            this.kind = kind;
+            this.type = type;
+            this.dim1 = dim1;
+            this.dim2 = dim2;
+            this.line = line;
+            this.col = col;
+        }
+
+        @Override
+        public String toString() {
+            if (dim1 != null && dim2 != null) {
+                return kind + " : " + type + "[" + dim1 + "][" + dim2 + "]" + " (" + line + "," + col + ")";
+            }
+            return kind + " : " + type + " (" + line + "," + col + ")";
+        }
+    }
+
+    // scopeName -> (id -> SymInfo)
+    HashMap<String, HashMap<String, SymInfo>> tablas = new HashMap<>();
+    String currentScope = "world";   // world, navidad, nombreFuncion
+
+    ArrayList<String> errores = new ArrayList<>();
+
+    void initTablas() {
+        if (!tablas.containsKey("world")) tablas.put("world", new HashMap<>());
+        currentScope = "world";
+    }
+
+    void pushScope(String scope) {
+        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
+        currentScope = scope;
+    }
+
+    void popToWorld() {
+        currentScope = "world";
+    }
+
+    boolean existeEnScope(String scope, String id) {
+        return tablas.containsKey(scope) && tablas.get(scope).containsKey(id);
+    }
+
+    boolean existeEnAlguno(String id) {
+        // primero currentScope, luego world
+        if (existeEnScope(currentScope, id)) return true;
+        return existeEnScope("world", id);
+    }
+
+    SymInfo getSimbolo(String id) {
+        if (existeEnScope(currentScope, id)) return tablas.get(currentScope).get(id);
+        if (existeEnScope("world", id)) return tablas.get("world").get(id);
+        return null;
+    }
+
+    void addError(String msg) {
+        errores.add(msg);
+        System.err.println(msg);
+    }
+
+    void declararVar(String scope, String id, String tipo, int line, int col, boolean esParametro) {
+        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
+
+        HashMap<String, SymInfo> t = tablas.get(scope);
+        if (t.containsKey(id)) {
+            addError("[SEM] Duplicado en scope '" + scope + "': " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        t.put(id, new SymInfo(esParametro ? "PARAM" : "VAR", tipo, line, col));
+    }
+
+    void declararArr(String scope, String id, String tipo, int d1, int d2, int line, int col) {
+        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
+
+        HashMap<String, SymInfo> t = tablas.get(scope);
+        if (t.containsKey(id)) {
+            addError("[SEM] Duplicado en scope '" + scope + "': " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        t.put(id, new SymInfo("ARR", tipo, d1, d2, line, col));
+    }
+
+    void declararFuncion(String id, String tipoRet, int line, int col) {
+        HashMap<String, SymInfo> world = tablas.get("world");
+        if (world.containsKey(id)) {
+            addError("[SEM] Duplicado global (func/var) en world: " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        world.put(id, new SymInfo("FUNC", tipoRet, line, col));
+    }
+
+    void declararMain(int line, int col) {
+        HashMap<String, SymInfo> world = tablas.get("world");
+        if (world.containsKey("navidad")) {
+            addError("[SEM] Duplicado main navidad (" + line + "," + col + ")");
+            return;
+        }
+        world.put("navidad", new SymInfo("MAIN", "coal", line, col));
+    }
+
+    void checkIDUsado(String id, int line, int col) {
+        if (!existeEnAlguno(id)) {
+            addError("[SEM] Uso de ID no declarado: " + id + " (" + line + "," + col + ")");
+        }
+    }
+
+    void checkFuncionLlamada(String id, int line, int col) {
+        if (!existeEnScope("world", id)) {
+            addError("[SEM] Llamada a función inexistente: " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        SymInfo si = tablas.get("world").get(id);
+        if (!"FUNC".equals(si.kind) && !"MAIN".equals(si.kind)) {
+            addError("[SEM] Llamada a no-función: " + id + " (" + line + "," + col + ")");
+        }
+    }
+
+    void checkArrayAcceso(String id, int line, int col) {
+        SymInfo si = getSimbolo(id);
+        if (si == null) {
+            addError("[SEM] Acceso a arreglo no declarado: " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        if (!"ARR".equals(si.kind)) {
+            addError("[SEM] Acceso tipo arreglo sobre símbolo no-arreglo: " + id + " (" + line + "," + col + ")");
+        }
+    }
+
+    void printTablas() {
+        System.out.println("\n================ TABLAS DE SIMBOLOS ================");
+        for (String scope : tablas.keySet()) {
+            System.out.println("Scope: " + scope);
+            HashMap<String, SymInfo> t = tablas.get(scope);
+            for (String id : t.keySet()) {
+                System.out.println("  " + id + " -> " + t.get(id));
+            }
+            System.out.println();
+        }
+        if (!errores.isEmpty()) {
+            System.out.println("================ ERRORES/AVISOS ================");
+            for (String e : errores) System.out.println(e);
+        }
+        System.out.println("====================================================\n");
+    }
+
+    /* ===================== ERRORES SINTACTICOS ===================== */
+    public void syntax_error(Symbol s) {
+        addError("[SINT] Error de sintaxis en línea " + s.left + ", cerca de token: " + terminalToString(s));
+    }
+
+    public void report_error(String message, Object info) {
+        addError("[SINT] " + message);
+    }
+
+    private String terminalToString(Symbol s) {
+        try {
+            return sym.terminalNames[s.sym] + (s.value != null ? ("('" + s.value + "')") : "");
+        } catch(Exception e) {
+            return "<?>"; 
+        }
+    }
+
+:}
+
+/* init */
+init with {: initTablas(); :};
+
+precedence left OR;
+precedence left AND;
+precedence right NOT;
+
+precedence left PLUS, MINUS;
+precedence left TIMES, DIV, DIV_INT, MODULE;
+precedence right POWER;
+
+precedence right UMINUS;
+
+precedence right INCREMENT, DECREMENT;
+
 
 /* ------------TERMINALES------------ */
 
@@ -56,14 +260,21 @@ funciones ::= funciones funcion
 
 /* -----Datos----- */
 
-tipo ::= INT | FLOAT | BOOLEAN | CHAR | STRING ;
+tipo ::=
+      INT     {: Nodo n=new Nodo("int");     n.setTipo("int");     RESULT=n; :}
+    | FLOAT   {: Nodo n=new Nodo("float");   n.setTipo("float");   RESULT=n; :}
+    | BOOLEAN {: Nodo n=new Nodo("boolean"); n.setTipo("boolean"); RESULT=n; :}
+    | CHAR    {: Nodo n=new Nodo("char");    n.setTipo("char");    RESULT=n; :}
+    | STRING  {: Nodo n=new Nodo("string");  n.setTipo("string");  RESULT=n; :}
+    ;
 
-literal ::= INT_LIT
-          | FLOAT_LIT
-          | BOOLEAN_LIT
-          | CHAR_LIT
-          | STRING_LIT
-          ;
+literal ::=
+      INT_LIT:i      {: Nodo n=new Nodo(i); n.setTipo("int");     RESULT=n; :}
+    | FLOAT_LIT:f    {: Nodo n=new Nodo(f); n.setTipo("float");   RESULT=n; :}
+    | BOOLEAN_LIT:b  {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
+    | CHAR_LIT:c     {: Nodo n=new Nodo(c); n.setTipo("char");    RESULT=n; :}
+    | STRING_LIT:s   {: Nodo n=new Nodo(s); n.setTipo("string");  RESULT=n; :}
+    ;
 
 alcance ::= WORLD | LOCAL ;
 
@@ -278,5 +489,4 @@ get ::= GET PARENTHESIS_OPEN get_target PARENTHESIS_CLOSE ENDL ;
 get_target ::= ID
              | acceso_arreglo
              ;
-
 
