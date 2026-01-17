@@ -1,4 +1,4 @@
-package ParserLexer;
+/* package ParserLexer; */
 
 import java.util.ArrayList;
 
@@ -9,6 +9,13 @@ public class Nodo {
 
     public Nodo(String lexema) {
         this.lexema = lexema;
+        this.tipo = "";
+        this.hijos = new ArrayList<>();
+    }
+
+    // Constructor que acepta Object para facilitar el uso desde CUP
+    public Nodo(Object lexema) {
+        this.lexema = lexema != null ? lexema.toString() : "";
         this.tipo = "";
         this.hijos = new ArrayList<>();
     }

@@ -1,15 +1,13 @@
-package ParserLexer;
+/* package ParserLexer; */
 
 import java_cup.runtime.*;
+import java.util.*;
 
 /* Conectar CUP con lexer JFlex */
-scan with {: return ((Lexer)scanner).next_token(); :};
+scan with {: return ((Lexer)getScanner()).next_token(); :};
 
-parser code {:
-    public void syntax_error(Symbol s) {
-        System.err.println("Error de sintaxis en línea " + s.left);
-    }
-:}
+/* Esperamos 1 conflicto shift/reduce en expresiones con paréntesis */
+/* CUP resuelve a favor de shift, que es el comportamiento correcto */
 
 /* ========================= TABLA DE SIMBOLOS =============================== */
 
@@ -176,7 +174,7 @@ parser code {:
         declareInScope(currentScope(), id, new SymInfo("ARR", tipo, d1, d2, line, col));
     }
 
-|   // Declara una función en world
+    // Declara una función en world
     void declareFunc(String id, String tipoRet, int line, int col) {
         HashMap<String, SymInfo> w = tablas.get("world");
         if (w.containsKey(id)) {
@@ -267,18 +265,8 @@ parser code {:
 
 init with {: initTablas(); :};
 
-precedence left OR;
-precedence left AND;
-precedence right NOT;
-
-precedence left PLUS, MINUS;
-precedence left TIMES, DIV, DIV_INT, MODULE;
-precedence right POWER;
-
-precedence right UMINUS;
-
-precedence right INCREMENT, DECREMENT;
-
+// Esperamos 1 conflicto shift/reduce en expresiones con paréntesis
+// CUP resuelve a favor de shift, que es el comportamiento correcto
 
 /* ------------TERMINALES------------ */
 
@@ -297,8 +285,9 @@ terminal ID;
 
 non terminal programa, funciones, funcion, main;
 non terminal tipo, literal, alcance;
-non terminal params, param;
+non terminal params, params_opt, param;
 non terminal creacion, creacion_sentencia, asignacion, asignacion_sentencia;
+non terminal reasignacion, reasignacion_sentencia;
 non terminal unario;
 non terminal sentencias, sentencia, bloque;
 non terminal estructura, for_init, for, loop, decide_of;
@@ -381,7 +370,14 @@ literal ::=
     | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); RESULT=n; :}
     ;
 
-alcance ::= WORLD | LOCAL ;
+
+
+alcance ::= 
+            WORLD
+            {: Nodo n = new Nodo("world"); n.setTipo("world"); RESULT = n; :}
+        | LOCAL
+            {: Nodo n = new Nodo("local"); n.setTipo("local"); RESULT = n; :}
+        ;
 
 /* -----funciones----- */
 
@@ -410,11 +406,12 @@ param ::=
       tipo:t ID:id
       {:
           // parámetros: se declaran en el scope de la función (no en el bloque)
-          declareVar("local", ((Nodo)t).getTipo(), id, idleft, idright, true);
+          String idStr = id.toString();
+          declareVar("local", ((Nodo)t).getTipo(), idStr, idleft, idright, true);
 
           Nodo n=new Nodo("param");
           n.addHijo((Nodo)t);
-          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
           n.addHijo(nid);
           RESULT=n;
       :}
@@ -422,9 +419,9 @@ param ::=
 
 /* ----- main ----- */
 main ::=
-      COAL_TYPE NAVIDAD
+      COAL_TYPE NAVIDAD:nav
       {:
-          declareMain(NAVIDADleft, NAVIDADright); // Registra navidad en world como MAIN
+          declareMain(navleft, navright); // Registra navidad en world como MAIN
           pushNamedScope("navidad"); // Crea y entra al scope "Navidad"
       :}
       PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
@@ -445,14 +442,16 @@ main ::=
 funcion ::=
       GIFT tipo:t ID:id
       {:
-          declareFunc(id, ((Nodo)t).getTipo(), idleft, idright);
-          pushNamedScope(id);
+          String idStr = id.toString();
+          declareFunc(idStr, ((Nodo)t).getTipo(), idleft, idright);
+          pushNamedScope(idStr);
       :}
       PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE bloque:b
       {:
+          String idStr = id.toString();
           Nodo n=new Nodo("funcion");
           n.addHijo(new Nodo("gift"));
-          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
           n.addHijo((Nodo)t);
           n.addHijo(nid);
           n.addHijo((Nodo)po);
@@ -471,11 +470,12 @@ creacion ::=
       alcance:a tipo:t ID:id
       {:
           String alc = ((Nodo)a).getTipo(); // world/local
-          declareVar(alc, ((Nodo)t).getTipo(), id, idleft, idright, false);
+          String idStr = id.toString();
+          declareVar(alc, ((Nodo)t).getTipo(), idStr, idleft, idright, false);
 
           Nodo n=new Nodo("creacion");
           n.addHijo((Nodo)a);
-          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
           n.addHijo((Nodo)t);
           n.addHijo(nid);
           RESULT=n;
@@ -495,16 +495,41 @@ asignacion ::=
       alcance:a tipo:t ID:id ASSIGN expresion:e
       {:
           String alc=((Nodo)a).getTipo();
+          String idStr = id.toString();
           // en tu lenguaje esto es declaracion+asignacion
-          declareVar(alc, ((Nodo)t).getTipo(), id, idleft, idright, false);
+          declareVar(alc, ((Nodo)t).getTipo(), idStr, idleft, idright, false);
 
           Nodo n=new Nodo("asignacion_decl");
           n.addHijo((Nodo)a);
-          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
           n.addHijo((Nodo)t);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
+    ;
+
+/* Reasignación simple (para variables ya declaradas) */
+reasignacion ::=
+      ID:id ASSIGN expresion:e
+      {:
+          String idStr = id.toString();
+          // checkID(idStr, idleft, idright); // Verificar si existe
+          Nodo n=new Nodo("reasignacion");
+          Nodo nid=new Nodo(idStr);
+          n.addHijo(nid);
+          n.addHijo(new Nodo("="));
+          n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
+    ;
+
+reasignacion_sentencia ::=
+      reasignacion:r ENDL
+      {:
+          Nodo n=new Nodo("reasignacion_sent");
+          n.addHijo((Nodo)r);
           RESULT=n;
       :}
     ;
@@ -518,11 +543,23 @@ asignacion_sentencia ::=
       :}
     ;
 
-unario ::= INCREMENT ID
-         | DECREMENT ID
-         | INCREMENT acceso_arreglo
-         | DECREMENT acceso_arreglo
-         ;
+unario ::= INCREMENT ID:id
+                 {: Nodo n = new Nodo("++pre"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+             | DECREMENT ID:id
+                 {: Nodo n = new Nodo("--pre"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+             | ID:id INCREMENT
+                 {: Nodo n = new Nodo("++post"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+             | ID:id DECREMENT
+                 {: Nodo n = new Nodo("--post"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+             | INCREMENT acceso_arreglo:a
+                 {: Nodo n = new Nodo("++pre"); n.addHijo((Nodo)a); RESULT = n; :}
+             | DECREMENT acceso_arreglo:a
+                 {: Nodo n = new Nodo("--pre"); n.addHijo((Nodo)a); RESULT = n; :}
+             | acceso_arreglo:a INCREMENT
+                 {: Nodo n = new Nodo("++post"); n.addHijo((Nodo)a); RESULT = n; :}
+             | acceso_arreglo:a DECREMENT
+                 {: Nodo n = new Nodo("--post"); n.addHijo((Nodo)a); RESULT = n; :}
+             ;
 
 /* -----sentencias----- */
 
@@ -548,17 +585,18 @@ sentencias ::=
     */    
 
 sentencia ::=
-      asignacion_sentencia
-    | creacion_sentencia
-    | estructura
+      asignacion_sentencia:a {: RESULT = a; :}
+    | reasignacion_sentencia:r {: RESULT = r; :}
+    | creacion_sentencia:c {: RESULT = c; :}
+    | estructura:e {: RESULT = e; :}
     | expresion:e ENDL
       {:
           Nodo n=new Nodo("expr_sent");
           n.addHijo((Nodo)e);
           RESULT=n;
       :}
-    | asignacion_elemento
-    | io
+    | asignacion_elemento:a {: RESULT = a; :}
+    | io:i {: RESULT = i; :}
     | BREAK ENDL
       {:
           Nodo n=new Nodo("break");
@@ -579,68 +617,46 @@ sentencia ::=
 
 // BLOQUE: por cada ¡ ! crea una tabla nueva (máscara) 
 bloque ::=
-      BLOCK_OPEN
-      {:
-          // Scope por bloque específico (máscara única)
-          pushAutoScope("bloque");
-      :}
-      sentencias:s
-      BLOCK_CLOSE
+      BLOCK_OPEN sentencias:s BLOCK_CLOSE
       {:
           Nodo n=new Nodo("bloque");
           n.addHijo(new Nodo("¡"));
           n.addHijo((Nodo)s);
           n.addHijo(new Nodo("!"));
           RESULT=n;
-
-          popScope();
       :}
-    | BLOCK_OPEN
-      {:
-          pushAutoScope("bloque");
-      :}
-      BLOCK_CLOSE
+    | BLOCK_OPEN BLOCK_CLOSE
       {:
           Nodo n=new Nodo("bloque_vacio");
           n.addHijo(new Nodo("¡"));
           n.addHijo(new Nodo("!"));
           RESULT=n;
-          popScope();
       :}
-    | BLOCK_OPEN
-      {:
-          pushAutoScope("bloque");
-      :}
-      error
-      BLOCK_CLOSE
+    | BLOCK_OPEN error BLOCK_CLOSE
       {:
           addError("[PANIC] Bloque inválido, sincronizado en '!'.");
           RESULT=new Nodo("bloque_error");
-          popScope();
       :}
     ;
 
 /* ----- Control ----- */
 estructura ::=
-      for
-    | loop
-    | decide_of
-    | arreglo
+      for:f {: RESULT = f; :}
+    | loop:l {: RESULT = l; :}
+    | decide_of:d {: RESULT = d; :}
+    | arreglo:a {: RESULT = a; :}
     ;
 
 /* for_init va DENTRO del scope del for */
 for_init ::=
-      asignacion
-    | creacion
+      asignacion:a {: RESULT = a; :}
+    | creacion:c {: RESULT = c; :}
+    | reasignacion:r {: RESULT = r; :}
     ;
 
 // FOR: abre scope propio ANTES de parsear init 
 for ::=
-      FOR
-      {:
-          pushAutoScope("for");
-      :}
-      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b
+      FOR PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b ENDL
       {:
           Nodo n=new Nodo("for");
           n.addHijo((Nodo)fi);
@@ -648,25 +664,18 @@ for ::=
           n.addHijo((Nodo)u);
           n.addHijo((Nodo)b);
           RESULT=n;
-
-          // cerrar scope del for (bloques internos ya se cerraron)
-          popScope();
       :}
     ;
 
-// LOOP: scope propio del loop (aunque el bloque también tenga scope) 
+// LOOP: estructura tipo Ada sin llaves de bloque
+// loop instrucciones exit when condicion endl end loop endl
 loop ::=
-      LOOP
-      {:
-          pushAutoScope("loop");
-      :}
-      bloque:b EXIT WHEN expr_logica:cond ENDL END LOOP ENDL
+      LOOP sentencias:s EXIT WHEN expr_logica:cond ENDL END LOOP ENDL
       {:
           Nodo n=new Nodo("loop");
-          n.addHijo((Nodo)b);
+          n.addHijo((Nodo)s);
           n.addHijo((Nodo)cond);
           RESULT=n;
-          popScope();
       :}
     ;
 
@@ -697,163 +706,203 @@ caso ::=
 
 // DECIDE: scope propio del decide_of 
 decide_of ::=
-      DECIDE
-      {:
-          pushAutoScope("decide");
-      :}
-      OF casos:cs END DECIDE ENDL
+      DECIDE OF casos:cs END DECIDE ENDL
       {:
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           RESULT=n;
-          popScope();
       :}
-    | DECIDE
-      {:
-          pushAutoScope("decide");
-      :}
-      OF casos:cs ELSE bloque:b END DECIDE ENDL
+    | DECIDE OF casos:cs ELSE bloque:b END DECIDE ENDL
       {:
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           n.addHijo((Nodo)b);
           RESULT=n;
-          popScope();
       :}
     ;
 
 /* -----arreglos----- */
 
-arreglo ::= creacion_arreglo ;
+arreglo ::= creacion_arreglo:c {: RESULT = c; :}
+    ;
+  
 
-dim ::= ARRAY_OPEN INT_LIT ARRAY_CLOSE ARRAY_OPEN INT_LIT ARRAY_CLOSE ;
+dim ::= ARRAY_OPEN INT_LIT:d1 ARRAY_CLOSE ARRAY_OPEN INT_LIT:d2 ARRAY_CLOSE
+    {: Nodo n = new Nodo("dim"); Nodo n1 = new Nodo(d1); Nodo n2 = new Nodo(d2); n.addHijo(n1); n.addHijo(n2); RESULT = n; :}
+    ;
 
-decl_arreglo ::= tipo ID dim ;
+decl_arreglo ::= tipo:t ID:id dim:dm
+    {: Nodo n = new Nodo("decl_arreglo"); n.addHijo((Nodo)t); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)dm); RESULT = n; :}
+    ;
 
-creacion_arreglo ::= alcance decl_arreglo ENDL
-                   | alcance decl_arreglo ASSIGN arreglo_init ENDL
-                   ;
+creacion_arreglo ::= 
+      alcance:a decl_arreglo:d ENDL
+        {: Nodo n = new Nodo("creacion_arreglo"); n.addHijo((Nodo)a); n.addHijo((Nodo)d); RESULT = n; :}
+    | alcance:a decl_arreglo:d ASSIGN arreglo_init:init ENDL
+        {: Nodo n = new Nodo("creacion_arreglo_init"); n.addHijo((Nodo)a); n.addHijo((Nodo)d); n.addHijo((Nodo)init); RESULT = n; :}
+    ;
 
-asignacion_elemento ::= acceso_arreglo ASSIGN lit_array ENDL ;
+asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
+    {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)l); RESULT = n; :}
+    ;
 
-acceso_arreglo ::= ID ARRAY_OPEN expresion ARRAY_CLOSE ARRAY_OPEN expresion ARRAY_CLOSE ;
+acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresion:e2 ARRAY_CLOSE
+    {: Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    ;
 
-elementos ::= lit_array
-            | elementos COMMA lit_array
-            ;
+elementos ::= lit_array:l
+    {: Nodo n = new Nodo("elementos"); n.addHijo((Nodo)l); RESULT = n; :}
+    | elementos:els COMMA lit_array:l
+    {: Nodo n = (Nodo)els; n.addHijo(new Nodo(",")); n.addHijo((Nodo)l); RESULT = n; :}
+    ;
 
-fila ::= BLOCK_OPEN elementos BLOCK_CLOSE ;
+fila ::= BLOCK_OPEN elementos:els BLOCK_CLOSE
+    {: Nodo n = new Nodo("fila"); n.addHijo((Nodo)els); RESULT = n; :}
+    ;
 
-filas ::= fila
-        | filas COMMA fila
-        ;
+filas ::= fila:f
+    {: Nodo n = new Nodo("filas"); n.addHijo((Nodo)f); RESULT = n; :}
+    | filas:fs COMMA fila:f
+    {: Nodo n = (Nodo)fs; n.addHijo(new Nodo(",")); n.addHijo((Nodo)f); RESULT = n; :}
+    ;
 
-arreglo_init ::= BLOCK_OPEN filas BLOCK_CLOSE ;
+arreglo_init ::= BLOCK_OPEN filas:f BLOCK_CLOSE
+    {: Nodo n = new Nodo("arreglo_init"); n.addHijo((Nodo)f); RESULT = n; :}
+    ;
 
 
-lit_array ::= INT_LIT | CHAR_LIT ;
+lit_array ::= INT_LIT:i {: Nodo n = new Nodo(i); n.setTipo("int"); RESULT = n; :}
+           | CHAR_LIT:c {: Nodo n = new Nodo(c); n.setTipo("char"); RESULT = n; :}
+           ;
 
 /* -----llamadas----- */
 
-llamada ::= ID PARENTHESIS_OPEN args PARENTHESIS_CLOSE
-          | ID PARENTHESIS_OPEN PARENTHESIS_CLOSE
+llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
+        {: Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)a); RESULT = n; :}
+    | ID:id PARENTHESIS_OPEN PARENTHESIS_CLOSE
+        {: Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(id); n.addHijo(nid); RESULT = n; :}
           ;
 
-args ::= args COMMA expresion
-       | expresion
-       ;
+args ::= args:as COMMA expresion:e
+        {: Nodo n = (Nodo)as; n.addHijo(new Nodo(",")); n.addHijo((Nodo)e); RESULT = n; :}
+    | expresion:e
+        {: Nodo n = new Nodo("args"); n.addHijo((Nodo)e); RESULT = n; :}
+    ;
 
 /* -----Expresiones----- */
 
-expresion ::= literal
-            | ID
-            | expr_aritm
-            | expr_relacional
-            | expr_logica
-            | acceso_arreglo
-            | llamada
+expresion ::= expr_logica:e {: RESULT = e; :}
             ;
 
 /* -----aritmeicas----- */
 
-expr_aritm ::= expr_aritm PLUS term
-             | expr_aritm MINUS term
-             | term
-             ;
+expr_aritm ::= expr_aritm:e1 PLUS term:e2
+        {: Nodo n = new Nodo("+"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    | expr_aritm:e1 MINUS term:e2
+        {: Nodo n = new Nodo("-"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    | term:t
+        {: RESULT = t; :}
+    ;
 
-term ::= term TIMES power
-       | term DIV power
-       | term DIV_INT power
-       | term MODULE power
-       | power
-       ;
+term ::= term:t1 TIMES power:t2
+        {: Nodo n = new Nodo("*"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+    | term:t1 DIV power:t2
+        {: Nodo n = new Nodo("/"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+    | term:t1 DIV_INT power:t2
+        {: Nodo n = new Nodo("//"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+    | term:t1 MODULE power:t2
+        {: Nodo n = new Nodo("%"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+    | power:p
+        {: RESULT = p; :}
+    ;
 
-power ::= factor POWER power
-        | factor
-        ;
+power ::= factor:f1 POWER power:f2
+        {: Nodo n = new Nodo("^"); n.addHijo((Nodo)f1); n.addHijo((Nodo)f2); RESULT = n; :}
+    | factor:f
+        {: RESULT = f; :}
+    ;
 
-factor ::= literal
-         | ID
-         | acceso_arreglo
-         | llamada
-         | MINUS factor
-         | unario
-         | PARENTHESIS_OPEN expresion PARENTHESIS_CLOSE
-         ;
+factor ::= literal:l
+        {: RESULT = l; :}
+    | ID:id
+        {: Nodo n = new Nodo(id); RESULT = n; :}
+    | acceso_arreglo:a
+        {: RESULT = a; :}
+    | llamada:ll
+        {: RESULT = ll; :}
+    | MINUS factor:f
+        {: Nodo n = new Nodo("neg"); n.addHijo((Nodo)f); RESULT = n; :}
+    | unario:u
+        {: RESULT = u; :}
+    | PARENTHESIS_OPEN expresion:e PARENTHESIS_CLOSE
+        {: RESULT = e; :}
+    ;
 
 /* -----relacionales----- */
 
-expr_relacional ::= expresion_rel operador_rel expresion_rel ;
+expr_relacional ::= expresion_rel:e1 operador_rel:op expresion_rel:e2
+    {: Nodo n = new Nodo(op); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    ;
 
-expresion_rel ::= expr_aritm
-                | BOOLEAN_LIT
-                | ID
+expresion_rel ::= expr_aritm:e {: RESULT = e; :}
                 ;
 
-operador_rel ::= LESS_THAN
-               | LESS_OR_EQ_THAN
-               | MORE_THAN
-               | MORE_OR_EQ_THAN
-               | EQUALS
-               | DIFFERENT
-               ;
+operador_rel ::= LESS_THAN      {: RESULT = "<"; :}
+              | LESS_OR_EQ_THAN {: RESULT = "<="; :}
+              | MORE_THAN      {: RESULT = ">"; :}
+              | MORE_OR_EQ_THAN {: RESULT = ">="; :}
+              | EQUALS         {: RESULT = "=="; :}
+              | DIFFERENT      {: RESULT = "!="; :}
+              ;
 
 /* -----logicas----- */
 
-expr_logica ::= expr_logica OR expr_and
-              | expr_and
-              ;
+expr_logica ::= expr_logica:e1 OR expr_and:e2
+        {: Nodo n = new Nodo("or"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    | expr_and:e
+        {: RESULT = e; :}
+    ;
 
-expr_and ::= expr_and AND expr_not
-           | expr_not
-           ;
+expr_and ::= expr_and:e1 AND expr_not:e2
+        {: Nodo n = new Nodo("and"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    | expr_not:e
+        {: RESULT = e; :}
+    ;
 
-expr_not ::= NOT expr_not
-           | expr_bool
-           ;
+expr_not ::= NOT expr_not:e
+        {: Nodo n = new Nodo("not"); n.addHijo((Nodo)e); RESULT = n; :}
+    | expr_bool:e
+        {: RESULT = e; :}
+    ;
 
-expr_bool ::= BOOLEAN_LIT
-            | ID
-            | expr_relacional
-            | PARENTHESIS_OPEN expr_logica PARENTHESIS_CLOSE
-            ;
+expr_bool ::= expr_relacional:e
+        {: RESULT = e; :}
+    | expr_aritm:e
+        {: RESULT = e; :}
+    | PARENTHESIS_OPEN expr_logica:e PARENTHESIS_CLOSE
+        {: RESULT = e; :}
+    ;
 
 /* -----I/O----- */
 
-io ::= show
-     | get
-     ;
+io ::= show:s {: RESULT = s; :}
+    | get:g {: RESULT = g; :}
+    ;
 
-show ::= SHOW PARENTHESIS_OPEN show_arg PARENTHESIS_CLOSE ENDL ;
+show ::= SHOW PARENTHESIS_OPEN show_arg:a PARENTHESIS_CLOSE ENDL
+    {: Nodo n = new Nodo("show"); n.addHijo((Nodo)a); RESULT = n; :}
+    ;
 
-show_arg ::= literal
-           | ID
-           | acceso_arreglo
+show_arg ::= literal:l {: RESULT = l; :}
+         | ID:id {: Nodo n = new Nodo(id); RESULT = n; :}
+         | acceso_arreglo:a {: RESULT = a; :}
+         ;
+
+get ::= GET PARENTHESIS_OPEN get_target:t PARENTHESIS_CLOSE ENDL
+    {: Nodo n = new Nodo("get"); n.addHijo((Nodo)t); RESULT = n; :}
+    ;
+
+get_target ::= ID:id {: Nodo n = new Nodo(id); RESULT = n; :}
+           | acceso_arreglo:a {: RESULT = a; :}
            ;
-
-get ::= GET PARENTHESIS_OPEN get_target PARENTHESIS_CLOSE ENDL ;
-
-get_target ::= ID
-             | acceso_arreglo
-             ;
 
