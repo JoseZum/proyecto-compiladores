@@ -11,12 +11,15 @@ parser code {:
     }
 :}
 
+/* ========================= TABLA DE SIMBOLOS =============================== */
+
 parser code {:
 
-    /* ---- AST root para que el main pueda leerlo si quiere ---- */
+    // Apunta a la raiz del AST 
     public Nodo raizAST = null;
 
-    /* ===================== TABLA DE SIMBOLOS ===================== */
+    //SYMINFO: Qué guarda cada símbolo en la tabla de simbolos
+
     static class SymInfo {
         String kind;      // VAR, ARR, PARAM, FUNC, MAIN
         String type;      // int/float/boolean/char/string/coal
@@ -49,135 +52,203 @@ parser code {:
         }
     }
 
-    // scopeName -> (id -> SymInfo)
+    // Tablas por scope específico | scopeName -> (id -> SymInfo) 
     HashMap<String, HashMap<String, SymInfo>> tablas = new HashMap<>();
-    String currentScope = "world";   // world, navidad, nombreFuncion
+
+    // Jerarquía de Scopes | scopeName -> parentScopeName  (jerarquía)
+    HashMap<String, String> parentScope = new HashMap<>();
+
+    // Contador de nombres únicos para los scopes
+    HashMap<String, Integer> counters = new HashMap<>();
+
+    // Pila real de scopes
+    Deque<String> scopeStack = new ArrayDeque<>();
 
     ArrayList<String> errores = new ArrayList<>();
 
+    // Tabla Global: Inicializa y pone el scope en world
     void initTablas() {
-        if (!tablas.containsKey("world")) tablas.put("world", new HashMap<>());
-        currentScope = "world";
+        tablas.put("world", new HashMap<>());
+        parentScope.put("world", null);
+        scopeStack.clear();
+        scopeStack.push("world");
     }
 
-    void pushScope(String scope) {
-        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
-        currentScope = scope;
+    String currentScope() {
+        return scopeStack.peek();
     }
 
-    void popToWorld() {
-        currentScope = "world";
+    // Genera máscara única basada en el scope actual + kind
+    String genScopeName(String kind) {
+        String parent = currentScope();
+        String key = parent + "#" + kind;
+        int n = counters.getOrDefault(key, 0) + 1;
+        counters.put(key, n);
+        return parent + "_" + kind + n;   // ej: navidad_bloque1, NombreFunc_for2, NombreFunc_for2_bloque1...
+    }
+    
+    /* Hace 3 cosas:
+    1. Si no existe una tabla para un scope especifico, la crea
+    2. Si no tiene papá registrado, pone de padre al scope actual
+    3. Mete el scope a la pila y lo vuelve el current
+     */
+    void pushNamedScope(String name) {
+        if (!tablas.containsKey(name)) tablas.put(name, new HashMap<>());
+        if (!parentScope.containsKey(name)) parentScope.put(name, currentScope());
+        scopeStack.push(name);
     }
 
-    boolean existeEnScope(String scope, String id) {
-        return tablas.containsKey(scope) && tablas.get(scope).containsKey(id);
+    // Entra a un scope nuevo (lo mete a la pila) y le genera una máscara
+    void pushAutoScope(String kind) {
+        pushNamedScope(genScopeName(kind));
     }
 
-    boolean existeEnAlguno(String id) {
-        // primero currentScope, luego world
-        if (existeEnScope(currentScope, id)) return true;
-        return existeEnScope("world", id);
+    // Sale del scope actual
+    void popScope() {
+        if (scopeStack.size() > 1) scopeStack.pop(); // nunca sacar world
     }
-
-    SymInfo getSimbolo(String id) {
-        if (existeEnScope(currentScope, id)) return tablas.get(currentScope).get(id);
-        if (existeEnScope("world", id)) return tablas.get("world").get(id);
-        return null;
-    }
-
+    
     void addError(String msg) {
         errores.add(msg);
         System.err.println(msg);
     }
 
-    void declararVar(String scope, String id, String tipo, int line, int col, boolean esParametro) {
-        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
-
-        HashMap<String, SymInfo> t = tablas.get(scope);
-        if (t.containsKey(id)) {
-            addError("[SEM] Duplicado en scope '" + scope + "': " + id + " (" + line + "," + col + ")");
-            return;
+    /* Visibilidad hacia arriba:
+    Busca una variable/func/arreglo siguiendo la jerarquía de scopes
+    Si el símbolo no está en el current, sube al papá, y así hasta encontrarlo o llegar a world y poner null
+    
+     */
+    SymInfo lookup(String id) {
+        String s = currentScope();
+        while (s != null) {
+            HashMap<String, SymInfo> t = tablas.get(s);
+            if (t != null && t.containsKey(id)) return t.get(id);
+            s = parentScope.get(s); // Sube al tata
         }
-        t.put(id, new SymInfo(esParametro ? "PARAM" : "VAR", tipo, line, col));
+        return null;
+    }
+    // Revisa si el ID ya existe en el scope actual para detectar duplicados
+    boolean existsInCurrent(String id) {
+        return tablas.get(currentScope()).containsKey(id);
     }
 
-    void declararArr(String scope, String id, String tipo, int d1, int d2, int line, int col) {
-        if (!tablas.containsKey(scope)) tablas.put(scope, new HashMap<>());
-
-        HashMap<String, SymInfo> t = tablas.get(scope);
-        if (t.containsKey(id)) {
-            addError("[SEM] Duplicado en scope '" + scope + "': " + id + " (" + line + "," + col + ")");
-            return;
-        }
-        t.put(id, new SymInfo("ARR", tipo, d1, d2, line, col));
-    }
-
-    void declararFuncion(String id, String tipoRet, int line, int col) {
-        HashMap<String, SymInfo> world = tablas.get("world");
-        if (world.containsKey(id)) {
-            addError("[SEM] Duplicado global (func/var) en world: " + id + " (" + line + "," + col + ")");
-            return;
-        }
-        world.put(id, new SymInfo("FUNC", tipoRet, line, col));
-    }
-
-    void declararMain(int line, int col) {
-        HashMap<String, SymInfo> world = tablas.get("world");
-        if (world.containsKey("navidad")) {
-            addError("[SEM] Duplicado main navidad (" + line + "," + col + ")");
-            return;
-        }
-        world.put("navidad", new SymInfo("MAIN", "coal", line, col));
-    }
-
-    void checkIDUsado(String id, int line, int col) {
-        if (!existeEnAlguno(id)) {
+    // Verifica que un identificador exista 
+    void checkID(String id, int line, int col) {
+        if (lookup(id) == null) {
             addError("[SEM] Uso de ID no declarado: " + id + " (" + line + "," + col + ")");
         }
     }
 
-    void checkFuncionLlamada(String id, int line, int col) {
-        if (!existeEnScope("world", id)) {
+    // Declara un símbolo en un scope específico
+    void declareInScope(String scope, String id, SymInfo info) {
+        HashMap<String, SymInfo> t = tablas.get(scope);
+        if (t.containsKey(id)) {
+            addError("[SEM] Duplicado en scope '" + scope + "': " + id + " (" + info.line + "," + info.col + ")");
+            return;
+        }
+        t.put(id, info);
+    }
+
+    // Declara variables o parámetros y los mete a la tabla que corresponda (local o world)
+    void declareVar(String alcance, String tipo, String id, int line, int col, boolean isParam) {
+        if ("world".equals(alcance)) {
+            declareInScope("world", id, new SymInfo(isParam ? "PARAM" : "VAR", tipo, line, col));
+            return;
+        }
+        // local
+        if ("world".equals(currentScope())) {
+            addError("[SEM] 'local' fuera de función/navidad/bloque: " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        declareInScope(currentScope(), id, new SymInfo(isParam ? "PARAM" : "VAR", tipo, line, col));
+    }
+
+    // Igual que declareVar pero para arrays
+    void declareArr(String alcance, String tipo, String id, int d1, int d2, int line, int col) {
+        if ("world".equals(alcance)) {
+            declareInScope("world", id, new SymInfo("ARR", tipo, d1, d2, line, col));
+            return;
+        }
+        if ("world".equals(currentScope())) {
+            addError("[SEM] 'local' fuera de función/navidad/bloque (arreglo): " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        declareInScope(currentScope(), id, new SymInfo("ARR", tipo, d1, d2, line, col));
+    }
+
+|   // Declara una función en world
+    void declareFunc(String id, String tipoRet, int line, int col) {
+        HashMap<String, SymInfo> w = tablas.get("world");
+        if (w.containsKey(id)) {
+            addError("[SEM] Duplicado global en world: " + id + " (" + line + "," + col + ")");
+            return;
+        }
+        w.put(id, new SymInfo("FUNC", tipoRet, line, col));
+    }
+
+    // Declara el main navidad en world
+    void declareMain(int line, int col) {
+        HashMap<String, SymInfo> w = tablas.get("world");
+        if (w.containsKey("navidad")) {
+            addError("[SEM] Duplicado main navidad (" + line + "," + col + ")");
+            return;
+        }
+        w.put("navidad", new SymInfo("MAIN", "coal", line, col));
+    }
+
+    // Verifica llamadas, que ID exista en world y sea FUNC o MAIN
+    void checkCall(String id, int line, int col) {
+        HashMap<String, SymInfo> w = tablas.get("world");
+        if (!w.containsKey(id)) {
             addError("[SEM] Llamada a función inexistente: " + id + " (" + line + "," + col + ")");
             return;
         }
-        SymInfo si = tablas.get("world").get(id);
-        if (!"FUNC".equals(si.kind) && !"MAIN".equals(si.kind)) {
+        String k = w.get(id).kind;
+        if (!"FUNC".equals(k) && !"MAIN".equals(k)) {
             addError("[SEM] Llamada a no-función: " + id + " (" + line + "," + col + ")");
         }
     }
 
-    void checkArrayAcceso(String id, int line, int col) {
-        SymInfo si = getSimbolo(id);
+    // Verifica que el id exista y que sea ARR
+    void checkArray(String id, int line, int col) {
+        SymInfo si = lookup(id);
         if (si == null) {
             addError("[SEM] Acceso a arreglo no declarado: " + id + " (" + line + "," + col + ")");
             return;
         }
         if (!"ARR".equals(si.kind)) {
-            addError("[SEM] Acceso tipo arreglo sobre símbolo no-arreglo: " + id + " (" + line + "," + col + ")");
+            addError("[SEM] Acceso arreglo sobre símbolo no-arreglo: " + id + " (" + line + "," + col + ")");
         }
     }
 
     void printTablas() {
-        System.out.println("\n================ TABLAS DE SIMBOLOS ================");
+        System.out.println("\n================ TABLAS DE SIMBOLOS (JERARQUIA) ==============");
+        // Imprimir en orden jerárquico: world y luego lo otro
+        System.out.println("Scope: world");
+        for (Map.Entry<String, SymInfo> e : tablas.get("world").entrySet()) {
+            System.out.println("  " + e.getKey() + " -> " + e.getValue());
+        }
+        System.out.println();
+
         for (String scope : tablas.keySet()) {
-            System.out.println("Scope: " + scope);
-            HashMap<String, SymInfo> t = tablas.get(scope);
-            for (String id : t.keySet()) {
-                System.out.println("  " + id + " -> " + t.get(id));
+            if ("world".equals(scope)) continue;
+            System.out.println("Scope: " + scope + " (parent=" + parentScope.get(scope) + ")");
+            for (Map.Entry<String, SymInfo> e : tablas.get(scope).entrySet()) {
+                System.out.println("  " + e.getKey() + " -> " + e.getValue());
             }
             System.out.println();
         }
+
         if (!errores.isEmpty()) {
             System.out.println("================ ERRORES/AVISOS ================");
             for (String e : errores) System.out.println(e);
         }
-        System.out.println("====================================================\n");
+        System.out.println("=================================================\n");
     }
 
-    /* ===================== ERRORES SINTACTICOS ===================== */
+    /*======== ERRORES SINTACTICOS =========*/
     public void syntax_error(Symbol s) {
-        addError("[SINT] Error de sintaxis en línea " + s.left + ", cerca de token: " + terminalToString(s));
+        addError("[SINT] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
     }
 
     public void report_error(String message, Object info) {
@@ -194,7 +265,6 @@ parser code {:
 
 :}
 
-/* init */
 init with {: initTablas(); :};
 
 precedence left OR;
@@ -261,19 +331,19 @@ funciones ::= funciones funcion
 /* -----Datos----- */
 
 tipo ::=
-      INT     {: Nodo n=new Nodo("int");     n.setTipo("int");     RESULT=n; :}
-    | FLOAT   {: Nodo n=new Nodo("float");   n.setTipo("float");   RESULT=n; :}
-    | BOOLEAN {: Nodo n=new Nodo("boolean"); n.setTipo("boolean"); RESULT=n; :}
-    | CHAR    {: Nodo n=new Nodo("char");    n.setTipo("char");    RESULT=n; :}
-    | STRING  {: Nodo n=new Nodo("string");  n.setTipo("string");  RESULT=n; :}
+      INT {:Nodo n=new Nodo("int");     n.setTipo("int");     RESULT=n; :}
+    | FLOAT {:Nodo n=new Nodo("float");   n.setTipo("float");   RESULT=n; :}
+    | BOOLEAN {:Nodo n=new Nodo("boolean"); n.setTipo("boolean"); RESULT=n; :}
+    | CHAR {:Nodo n=new Nodo("char");    n.setTipo("char");    RESULT=n; :}
+    | STRING {:Nodo n=new Nodo("string");  n.setTipo("string");  RESULT=n; :}
     ;
 
 literal ::=
-      INT_LIT:i      {: Nodo n=new Nodo(i); n.setTipo("int");     RESULT=n; :}
-    | FLOAT_LIT:f    {: Nodo n=new Nodo(f); n.setTipo("float");   RESULT=n; :}
-    | BOOLEAN_LIT:b  {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
-    | CHAR_LIT:c     {: Nodo n=new Nodo(c); n.setTipo("char");    RESULT=n; :}
-    | STRING_LIT:s   {: Nodo n=new Nodo(s); n.setTipo("string");  RESULT=n; :}
+      INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); RESULT=n; :}
+    | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); RESULT=n; :}
+    | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
+    | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); RESULT=n; :}
+    | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); RESULT=n; :}
     ;
 
 alcance ::= WORLD | LOCAL ;
