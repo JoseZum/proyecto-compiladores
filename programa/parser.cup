@@ -60,7 +60,7 @@ parser code {:
 
     // Contador de nombres únicos para los scopes
     HashMap<String, Integer> counters = new HashMap<>();
-
+    
     // Pila real de scopes
     Deque<String> scopeStack = new ArrayDeque<>();
 
@@ -320,13 +320,48 @@ start with programa;
 
 /* ------------PRODUCCIONES------------ */
 
-programa ::= funciones main
-           | main
-           ;
+programa ::=
+      funciones:f main:m
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)f); // Hijo 1: Lista de funciones
+          n.addHijo((Nodo)m); // Hijo 2: Main (Navidad)
+          raizAST = n;
 
-funciones ::= funciones funcion
-            | funcion
-            ;
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+
+          RESULT = n;
+      :}
+    | main:m
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)m);
+          raizAST = n;
+
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+
+          RESULT = n;
+      :}
+    ;
+
+funciones ::=
+      funciones:fs funcion:fn
+      {:
+          Nodo n = (Nodo)fs;
+          n.addHijo((Nodo)fn);
+          RESULT = n;
+      :}
+    | funcion:fn
+      {:
+          Nodo n = new Nodo("funciones");
+          n.addHijo((Nodo)fn);
+          RESULT = n;
+      :}
+    ;
 
 /* -----Datos----- */
 
@@ -350,28 +385,138 @@ alcance ::= WORLD | LOCAL ;
 
 /* -----funciones----- */
 
-params ::= params COMMA param
-         | param
-         ;
+params_opt ::=
+      params:p {: RESULT=(Nodo)p; :}
+    | /* empty */ {: RESULT=new Nodo("params_vacios"); :}
+    ;
 
-param ::= tipo ID ;
+params ::=
+      params:ps COMMA param:p
+      {:
+          Nodo n=(Nodo)ps;
+          n.addHijo(new Nodo(","));
+          n.addHijo((Nodo)p);
+          RESULT=n;
+      :}
+    | param:p
+      {:
+          Nodo n=new Nodo("params");
+          n.addHijo((Nodo)p);
+          RESULT=n;
+      :}
+    ;
 
-main ::= COAL_TYPE NAVIDAD PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque ;
+param ::=
+      tipo:t ID:id
+      {:
+          // parámetros: se declaran en el scope de la función (no en el bloque)
+          declareVar("local", ((Nodo)t).getTipo(), id, idleft, idright, true);
 
-funcion ::= GIFT tipo ID PARENTHESIS_OPEN params PARENTHESIS_CLOSE bloque |
-            GIFT tipo ID PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque;
+          Nodo n=new Nodo("param");
+          n.addHijo((Nodo)t);
+          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          n.addHijo(nid);
+          RESULT=n;
+      :}
+    ;
+
+/* ----- main ----- */
+main ::=
+      COAL_TYPE NAVIDAD
+      {:
+          declareMain(NAVIDADleft, NAVIDADright); // Registra navidad en world como MAIN
+          pushNamedScope("navidad"); // Crea y entra al scope "Navidad"
+      :}
+      PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
+      {:
+          Nodo n=new Nodo("main");
+          n.addHijo(new Nodo("coal"));
+          n.addHijo(new Nodo("navidad"));
+          n.addHijo((Nodo)b);
+
+          // Salir del scope navidad (los bloques ya se hicieron pop solos)
+          popScope();
+
+          RESULT=n;
+      :}
+    ;
+
+/* ----- funcion ----- */
+funcion ::=
+      GIFT tipo:t ID:id
+      {:
+          declareFunc(id, ((Nodo)t).getTipo(), idleft, idright);
+          pushNamedScope(id);
+      :}
+      PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE bloque:b
+      {:
+          Nodo n=new Nodo("funcion");
+          n.addHijo(new Nodo("gift"));
+          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          n.addHijo((Nodo)t);
+          n.addHijo(nid);
+          n.addHijo((Nodo)po);
+          n.addHijo((Nodo)b);
+
+          // salir del scope de función
+          popScope();
+
+          RESULT=n;
+      :}
+    ;
 
 /* -----Declaraciones----- */
 
-creacion ::= alcance tipo ID
-           | asignacion
-           ;
+creacion ::=
+      alcance:a tipo:t ID:id
+      {:
+          String alc = ((Nodo)a).getTipo(); // world/local
+          declareVar(alc, ((Nodo)t).getTipo(), id, idleft, idright, false);
 
-creacion_sentencia ::= creacion ENDL ;
+          Nodo n=new Nodo("creacion");
+          n.addHijo((Nodo)a);
+          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          n.addHijo((Nodo)t);
+          n.addHijo(nid);
+          RESULT=n;
+      :}
+    ;
 
-asignacion ::= alcance tipo ID ASSIGN expresion ;
+creacion_sentencia ::=
+      creacion:c ENDL
+      {:
+          Nodo n=new Nodo("creacion_sent");
+          n.addHijo((Nodo)c);
+          RESULT=n;
+      :}
+    ;
 
-asignacion_sentencia ::= asignacion ENDL ;
+asignacion ::=
+      alcance:a tipo:t ID:id ASSIGN expresion:e
+      {:
+          String alc=((Nodo)a).getTipo();
+          // en tu lenguaje esto es declaracion+asignacion
+          declareVar(alc, ((Nodo)t).getTipo(), id, idleft, idright, false);
+
+          Nodo n=new Nodo("asignacion_decl");
+          n.addHijo((Nodo)a);
+          Nodo nid=new Nodo(id); nid.setTipo(((Nodo)t).getTipo());
+          n.addHijo((Nodo)t);
+          n.addHijo(nid);
+          n.addHijo(new Nodo("="));
+          n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
+    ;
+
+asignacion_sentencia ::=
+      asignacion:a ENDL
+      {:
+          Nodo n=new Nodo("asignacion_sent");
+          n.addHijo((Nodo)a);
+          RESULT=n;
+      :}
+    ;
 
 unario ::= INCREMENT ID
          | DECREMENT ID
@@ -381,49 +526,201 @@ unario ::= INCREMENT ID
 
 /* -----sentencias----- */
 
-sentencias ::= sentencias sentencia
-             | sentencia
-             ;
+sentencias ::=
+      sentencias:ss sentencia:s
+      {:
+          Nodo n=(Nodo)ss;
+          n.addHijo((Nodo)s);
+          RESULT=n;
+      :}
+    | sentencia:s
+      {:
+          Nodo n=new Nodo("sentencias");
+          n.addHijo((Nodo)s);
+          RESULT=n;
+      :}
+    ;
+    
+/* Una sentencia puede ser:
+     - declaración, asignación, estructura, expr endl, io, break, return
+     - o error ENDL (panic mode) 
+    Cada caso crea un nodo distinto
+    */    
 
-sentencia ::= asignacion_sentencia
-            | creacion_sentencia
-            | estructura
-            | expresion ENDL
-            | asignacion_elemento
-            | io
-            | BREAK ENDL
-            | RETURN expresion ENDL
-            ;
+sentencia ::=
+      asignacion_sentencia
+    | creacion_sentencia
+    | estructura
+    | expresion:e ENDL
+      {:
+          Nodo n=new Nodo("expr_sent");
+          n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
+    | asignacion_elemento
+    | io
+    | BREAK ENDL
+      {:
+          Nodo n=new Nodo("break");
+          RESULT=n;
+      :}
+    | RETURN expresion:e ENDL
+      {:
+          Nodo n=new Nodo("return");
+          n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
+    | error ENDL
+      {:
+          addError("[PANIC] Sentencia inválida, sincronizado en ENDL.");
+          RESULT=new Nodo("sentencia_error");
+      :}
+    ;
 
-bloque ::= BLOCK_OPEN sentencias BLOCK_CLOSE
-         | BLOCK_OPEN BLOCK_CLOSE
-         ;
+// BLOQUE: por cada ¡ ! crea una tabla nueva (máscara) 
+bloque ::=
+      BLOCK_OPEN
+      {:
+          // Scope por bloque específico (máscara única)
+          pushAutoScope("bloque");
+      :}
+      sentencias:s
+      BLOCK_CLOSE
+      {:
+          Nodo n=new Nodo("bloque");
+          n.addHijo(new Nodo("¡"));
+          n.addHijo((Nodo)s);
+          n.addHijo(new Nodo("!"));
+          RESULT=n;
 
-/* -----control----- */
+          popScope();
+      :}
+    | BLOCK_OPEN
+      {:
+          pushAutoScope("bloque");
+      :}
+      BLOCK_CLOSE
+      {:
+          Nodo n=new Nodo("bloque_vacio");
+          n.addHijo(new Nodo("¡"));
+          n.addHijo(new Nodo("!"));
+          RESULT=n;
+          popScope();
+      :}
+    | BLOCK_OPEN
+      {:
+          pushAutoScope("bloque");
+      :}
+      error
+      BLOCK_CLOSE
+      {:
+          addError("[PANIC] Bloque inválido, sincronizado en '!'.");
+          RESULT=new Nodo("bloque_error");
+          popScope();
+      :}
+    ;
 
-estructura ::= for
-             | loop
-             | decide_of
-             | arreglo
-             ;
+/* ----- Control ----- */
+estructura ::=
+      for
+    | loop
+    | decide_of
+    | arreglo
+    ;
 
-for_init ::= asignacion
-           | creacion
-           ;
+/* for_init va DENTRO del scope del for */
+for_init ::=
+      asignacion
+    | creacion
+    ;
 
-for ::= FOR PARENTHESIS_OPEN for_init ENDL expr_logica ENDL unario PARENTHESIS_CLOSE bloque ;
+// FOR: abre scope propio ANTES de parsear init 
+for ::=
+      FOR
+      {:
+          pushAutoScope("for");
+      :}
+      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b
+      {:
+          Nodo n=new Nodo("for");
+          n.addHijo((Nodo)fi);
+          n.addHijo((Nodo)cond);
+          n.addHijo((Nodo)u);
+          n.addHijo((Nodo)b);
+          RESULT=n;
 
-loop ::= LOOP bloque EXIT WHEN expr_logica ENDL END LOOP ENDL ;
+          // cerrar scope del for (bloques internos ya se cerraron)
+          popScope();
+      :}
+    ;
 
-casos ::= casos caso
-        | caso
-        ;
+// LOOP: scope propio del loop (aunque el bloque también tenga scope) 
+loop ::=
+      LOOP
+      {:
+          pushAutoScope("loop");
+      :}
+      bloque:b EXIT WHEN expr_logica:cond ENDL END LOOP ENDL
+      {:
+          Nodo n=new Nodo("loop");
+          n.addHijo((Nodo)b);
+          n.addHijo((Nodo)cond);
+          RESULT=n;
+          popScope();
+      :}
+    ;
 
-caso ::= expr_logica ARROW bloque ;
+casos ::=
+      casos:cs caso:c
+      {:
+          Nodo n=(Nodo)cs;
+          n.addHijo((Nodo)c);
+          RESULT=n;
+      :}
+    | caso:c
+      {:
+          Nodo n=new Nodo("casos");
+          n.addHijo((Nodo)c);
+          RESULT=n;
+      :}
+    ;
 
-decide_of ::= DECIDE OF casos END DECIDE ENDL
-            | DECIDE OF casos ELSE bloque END DECIDE ENDL
-            ;
+caso ::=
+      expr_logica:cond ARROW bloque:b
+      {:
+          Nodo n=new Nodo("caso");
+          n.addHijo((Nodo)cond);
+          n.addHijo((Nodo)b);
+          RESULT=n;
+      :}
+    ;
+
+// DECIDE: scope propio del decide_of 
+decide_of ::=
+      DECIDE
+      {:
+          pushAutoScope("decide");
+      :}
+      OF casos:cs END DECIDE ENDL
+      {:
+          Nodo n=new Nodo("decide_of");
+          n.addHijo((Nodo)cs);
+          RESULT=n;
+          popScope();
+      :}
+    | DECIDE
+      {:
+          pushAutoScope("decide");
+      :}
+      OF casos:cs ELSE bloque:b END DECIDE ENDL
+      {:
+          Nodo n=new Nodo("decide_of");
+          n.addHijo((Nodo)cs);
+          n.addHijo((Nodo)b);
+          RESULT=n;
+          popScope();
+      :}
+    ;
 
 /* -----arreglos----- */
 
