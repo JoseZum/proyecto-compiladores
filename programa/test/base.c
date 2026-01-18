@@ -6,7 +6,6 @@ world string _s1_ endl |comentario linea###
 
 gift float _mi_  ¿ int _dif_, char _otra_ ? ¡ 
 	| local int _otra_ endl
-	local int miArr[2][2] endl
 	local int miArr[2][2] = ¡¡1,2!¡3,4!! endl
 	local string _str_="Hola  endl ~&|! endl & ?  mundo" endl 
 	for   ¿ int i = 0 endl  i < 10 endl ++i ?

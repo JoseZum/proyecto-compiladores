@@ -760,6 +760,19 @@ for_init ::=
       asignacion:a {: RESULT = a; :}
     | creacion:c {: RESULT = c; :}
     | reasignacion:r {: RESULT = r; :}
+    | tipo:t ID:id ASSIGN expresion:e
+      {:
+          String idStr = id.toString();
+          declareVar("local", ((Nodo)t).getTipo(), idStr, idleft, idright, false);
+          
+          Nodo n=new Nodo("asignacion_for");
+          n.addHijo((Nodo)t);
+          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
+          n.addHijo(nid);
+          n.addHijo(new Nodo("="));
+          n.addHijo((Nodo)e);
+          RESULT=n;
+      :}
     ;
 
 // FOR
@@ -777,7 +790,7 @@ for ::=
 
 // LOOP
 loop ::=
-      LOOP sentencias:s EXIT WHEN expr_logica:cond ENDL END LOOP ENDL
+      LOOP sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
       {:
           Nodo n=new Nodo("loop");
           n.addHijo((Nodo)s);
@@ -836,14 +849,62 @@ dim ::= ARRAY_OPEN INT_LIT:d1 ARRAY_CLOSE ARRAY_OPEN INT_LIT:d2 ARRAY_CLOSE
     ;
 
 decl_arreglo ::= tipo:t ID:id dim:dm
-    {: Nodo n = new Nodo("decl_arreglo"); n.addHijo((Nodo)t); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)dm); RESULT = n; :}
+    {:
+        Nodo n = new Nodo("decl_arreglo");
+        n.addHijo((Nodo)t);
+        Nodo nid = new Nodo(id);
+        n.addHijo(nid);
+        n.addHijo((Nodo)dm);
+        RESULT = n;
+    :}
     ;
 
 creacion_arreglo ::= 
-      alcance:a decl_arreglo:d ENDL
-        {: Nodo n = new Nodo("creacion_arreglo"); n.addHijo((Nodo)a); n.addHijo((Nodo)d); RESULT = n; :}
-    | alcance:a decl_arreglo:d ASSIGN arreglo_init:init ENDL
-        {: Nodo n = new Nodo("creacion_arreglo_init"); n.addHijo((Nodo)a); n.addHijo((Nodo)d); n.addHijo((Nodo)init); RESULT = n; :}
+      alcance:a tipo:t ID:id dim:dm ENDL
+        {:
+            String alc = ((Nodo)a).getTipo();
+            String idStr = id.toString();
+            String tipo = ((Nodo)t).getTipo();
+            
+            Nodo dimNode = (Nodo)dm;
+            int d1 = Integer.parseInt(((Nodo)dimNode.hijos.get(0)).lexema);
+            int d2 = Integer.parseInt(((Nodo)dimNode.hijos.get(1)).lexema);
+            
+            declareArr(alc, tipo, idStr, d1, d2, idleft, idright);
+            
+            Nodo n = new Nodo("creacion_arreglo");
+            n.addHijo((Nodo)a);
+            Nodo declNode = new Nodo("decl_arreglo");
+            declNode.addHijo((Nodo)t);
+            Nodo nid = new Nodo(idStr);
+            declNode.addHijo(nid);
+            declNode.addHijo((Nodo)dm);
+            n.addHijo(declNode);
+            RESULT = n;
+        :}
+    | alcance:a tipo:t ID:id dim:dm ASSIGN arreglo_init:init ENDL
+        {:
+            String alc = ((Nodo)a).getTipo();
+            String idStr = id.toString();
+            String tipo = ((Nodo)t).getTipo();
+            
+            Nodo dimNode = (Nodo)dm;
+            int d1 = Integer.parseInt(((Nodo)dimNode.hijos.get(0)).lexema);
+            int d2 = Integer.parseInt(((Nodo)dimNode.hijos.get(1)).lexema);
+            
+            declareArr(alc, tipo, idStr, d1, d2, idleft, idright);
+            
+            Nodo n = new Nodo("creacion_arreglo_init");
+            n.addHijo((Nodo)a);
+            Nodo declNode = new Nodo("decl_arreglo");
+            declNode.addHijo((Nodo)t);
+            Nodo nid = new Nodo(idStr);
+            declNode.addHijo(nid);
+            declNode.addHijo((Nodo)dm);
+            n.addHijo(declNode);
+            n.addHijo((Nodo)init);
+            RESULT = n;
+        :}
     ;
 
 asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
