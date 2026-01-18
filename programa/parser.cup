@@ -983,6 +983,8 @@ creacion_arreglo ::=
 
 asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
     {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)l); RESULT = n; :}
+    | acceso_arreglo:a ASSIGN expresion:e ENDL
+    {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)e); RESULT = n; :}
     ;
 
 acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresion:e2 ARRAY_CLOSE
@@ -1136,9 +1138,7 @@ show ::= SHOW PARENTHESIS_OPEN show_arg:a PARENTHESIS_CLOSE ENDL
     {: Nodo n = new Nodo("show"); n.addHijo((Nodo)a); RESULT = n; :}
     ;
 
-show_arg ::= literal:l {: RESULT = l; :}
-         | ID:id {: Nodo n = new Nodo(id); RESULT = n; :}
-         | acceso_arreglo:a {: RESULT = a; :}
+show_arg ::= expresion:e {: RESULT = e; :}
          ;
 
 get ::= GET PARENTHESIS_OPEN get_target:t PARENTHESIS_CLOSE ENDL
