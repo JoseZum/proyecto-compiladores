@@ -17,12 +17,12 @@ public class TestLexer {
 
             if (args.length > 0) {
                 // Leer desde archivo
-                System.out.println("=".repeat(50));
+                System.out.println("-".repeat(50));
                 System.out.println("Probando lexer con archivo: " + args[0]);
-                System.out.println("=".repeat(50));
-                fileWriter.println("=".repeat(50));
+                System.out.println("-".repeat(50));
+                fileWriter.println("-".repeat(50));
                 fileWriter.println("Análisis léxico de archivo: " + args[0]);
-                fileWriter.println("=".repeat(50));
+                fileWriter.println("-".repeat(50));
 
                 FileReader fileReader = new FileReader(args[0]);
                 lexer = new Lexer(fileReader);
@@ -30,7 +30,7 @@ public class TestLexer {
                 // Leer desde stdin
                 System.out.println("Ingrese el código (Ctrl+D para terminar):");
                 fileWriter.println("Análisis léxico desde entrada estándar");
-                fileWriter.println("=".repeat(50));
+                fileWriter.println("-".repeat(50));
 
                 lexer = new Lexer(new InputStreamReader(System.in));
             }
@@ -75,15 +75,15 @@ public class TestLexer {
             // Imprimir resumen en consola y archivo
             System.out.println(separator);
             System.out.println("Total de tokens: " + tokenCount);
-            System.out.println("Análisis léxico completado exitosamente");
+            System.out.println("Análisis léxico completado");
             System.out.println("Tokens guardados en: tokens_output.txt");
 
             fileWriter.println(separator);
             fileWriter.println("Total de tokens: " + tokenCount);
-            fileWriter.println("Análisis completado exitosamente");
+            fileWriter.println("Análisis completado");
 
         } catch (FileNotFoundException e) {
-            System.err.println("Error: Archivo no encontrado - " + e.getMessage());
+            System.err.println("Error: Archivo no encontrado" + e.getMessage());
         } catch (IOException e) {
             System.err.println("Error de lectura/escritura: " + e.getMessage());
             e.printStackTrace();

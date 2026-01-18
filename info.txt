@@ -13,10 +13,10 @@ Número de carnet de los estudiantes:
 2023029575
 
 Número de proyecto programado:
-Proyecto Programado #2
+Proyecto Programado #2 analizador sintactico
 
 Fecha de entrega:
-xx/01/2026
+17/01/2026
 
 Estatus de la entrega:
 Superior

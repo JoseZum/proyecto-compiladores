@@ -13,7 +13,7 @@ coal navidad ¿? ¡
     ! endl
     
     | For con incremento mayor |
-    for ¿local int k = 0 endl k < 10 endl k = k + 2? ¡
+    for ¿local int k = 0 endl k < 10 endl k++? ¡
         show ¿k? endl
     ! endl
 !

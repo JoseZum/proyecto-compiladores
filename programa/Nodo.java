@@ -1,69 +1,69 @@
-/* package ParserLexer; */
+
+/*
+ * Clase nodo para construir los arboles sintacticos
+ */
 
 import java.util.ArrayList;
 
 public class Nodo {
+    //lexema del nodo
     String lexema;
+
+    //tipo de dato del nodo
     String tipo;
+
+    //lista de hijos de este nodo en el arbol sintactico
     ArrayList<Nodo> hijos;
 
+    // Constructor principal
     public Nodo(String lexema) {
         this.lexema = lexema;
         this.tipo = "";
         this.hijos = new ArrayList<>();
     }
 
-    // Constructor que acepta Object para facilitar el uso desde CUP
+    // Constructor alternativo que acepta cualquier objeto como lexema
     public Nodo(Object lexema) {
         this.lexema = lexema != null ? lexema.toString() : "";
         this.tipo = "";
         this.hijos = new ArrayList<>();
     }
 
+    // Asigna el tipo de dato al nodo
     public void setTipo(String tipo) {
         this.tipo = tipo;
     }
 
+    // Obtiene el tipo de dato del nodo
     public String getTipo() {
         return this.tipo;
     }
 
+    // pone un hijo a la lista de hijos del padre
     public void addHijo(Nodo hijo) {
         this.hijos.add(hijo);
     }
 
-    /**
-     * Imprime el árbol sintáctico de forma visual
-     */
+    // Imprime el arbol sintactico visual y con su jerarquia
+
     public void arbol() {
-        System.out.println("\n╔══════════════════════════════════════════════════════════╗");
-        System.out.println("║              ÁRBOL SINTÁCTICO (AST)                       ║");
-        System.out.println("╚══════════════════════════════════════════════════════════╝\n");
+        System.out.println("-----------ÁRBOL SINTÁCTICO-----------\n");
         imprimirArbol("", true);
     }
 
-    /**
-     * Método recursivo para imprimir el árbol con formato visual
-     * @param prefijo El prefijo de indentación actual
-     * @param esUltimo Si este nodo es el último hijo de su padre
-     */
+    //metodo para imrpir el arbol, es recursivo
     private void imprimirArbol(String prefijo, boolean esUltimo) {
-        // Determinar el conector
-        String conector = esUltimo ? "└── " : "├── ";
         
-        // Construir la etiqueta del nodo
+        String conector = esUltimo ? "└── " : "├── ";
+
         String etiqueta = this.lexema;
         if (this.tipo != null && !this.tipo.isEmpty()) {
             etiqueta += " : " + this.tipo;
         }
-        
-        // Imprimir este nodo
         System.out.println(prefijo + conector + etiqueta);
-        
-        // Preparar el prefijo para los hijos
+
         String prefijoHijos = prefijo + (esUltimo ? "    " : "│   ");
-        
-        // Imprimir los hijos
+
         for (int i = 0; i < hijos.size(); i++) {
             boolean ultimoHijo = (i == hijos.size() - 1);
             hijos.get(i).imprimirArbol(prefijoHijos, ultimoHijo);

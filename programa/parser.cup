@@ -1,24 +1,23 @@
-/* package ParserLexer; */
+/*
+ * parser.cup contiene la gramatica, scopes, tabla de simbolos analizador lexico y sintáctico para el lenguaje 
+ */
 
 import java_cup.runtime.*;
 import java.util.*;
 
-/* Conectar CUP con lexer JFlex */
+// Conectar CUP con el lexer generado por JFlex
 scan with {: return ((Lexer)getScanner()).next_token(); :};
 
-/* Esperamos 1 conflicto shift/reduce en expresiones con paréntesis */
-/* CUP resuelve a favor de shift, que es el comportamiento correcto */
+// Esperamos 1 conflicto shift/reduce en expresiones con paréntesis (CUP resuelve a favor de shift)
 
-/* ========================= TABLA DE SIMBOLOS =============================== */
+/* ---------- TABLA DE SIMBOLOS ---------- */
 
 parser code {:
-
-    // Apunta a la raiz del AST 
     public Nodo raizAST = null;
 
-    //SYMINFO: Qué guarda cada símbolo en la tabla de simbolos
-
+    
     static class SymInfo {
+        // clase para almacenar info de simbolos en la tabla
         String kind;      // VAR, ARR, PARAM, FUNC, MAIN
         String type;      // int/float/boolean/char/string/coal
         Integer dim1;     // para arreglos
@@ -50,21 +49,26 @@ parser code {:
         }
     }
 
-    // Tablas por scope específico | scopeName -> (id -> SymInfo) 
+    // ---------- estructuras para scopes y tabla de simbolos ----------
+
+    // Mapa: nombre de scope -> (id -> SymInfo)
     HashMap<String, HashMap<String, SymInfo>> tablas = new HashMap<>();
 
-    // Jerarquía de Scopes | scopeName -> parentScopeName  (jerarquía)
+    // Mapa: nombre de scope -> nombre del scope padre
     HashMap<String, String> parentScope = new HashMap<>();
 
-    // Contador de nombres únicos para los scopes
+    // Contador para generar nombres únicos de scopes anidados
     HashMap<String, Integer> counters = new HashMap<>();
-    
-    // Pila real de scopes
+
+    // Pila de scopes activos (jerarquía actual)
     Deque<String> scopeStack = new ArrayDeque<>();
 
+    // Lista de errores semánticos y sintácticos encontrados
     ArrayList<String> errores = new ArrayList<>();
 
-    // Tabla Global: Inicializa y pone el scope en world
+    /**
+     * Inicializa la tabla de símbolos global y el scope "world".
+     */
     void initTablas() {
         tablas.put("world", new HashMap<>());
         parentScope.put("world", null);
@@ -72,23 +76,29 @@ parser code {:
         scopeStack.push("world");
     }
 
+    /**
+     * Obtiene el nombre del scope actual
+     */
     String currentScope() {
         return scopeStack.peek();
     }
 
-    // Genera máscara única basada en el scope actual + kind
+    /**
+     * Genera un nombre único para un nuevo scope hijo, basado en el scope actual y el tipo de bloque.
+     * @param kind Tipo de bloque (ej: for, bloque, etc)
+     * @return Nombre único de scope
+     */
     String genScopeName(String kind) {
         String parent = currentScope();
         String key = parent + "#" + kind;
         int n = counters.getOrDefault(key, 0) + 1;
         counters.put(key, n);
-        return parent + "_" + kind + n;   // ej: navidad_bloque1, NombreFunc_for2, NombreFunc_for2_bloque1...
+        return parent + "_" + kind + n; 
     }
-    
-    /* Hace 3 cosas:
-    1. Si no existe una tabla para un scope especifico, la crea
-    2. Si no tiene papá registrado, pone de padre al scope actual
-    3. Mete el scope a la pila y lo vuelve el current
+
+    /**
+     * Entra a un scope nombrado 
+     * @param name Nombre del nuevo scope
      */
     void pushNamedScope(String name) {
         if (!tablas.containsKey(name)) tablas.put(name, new HashMap<>());
@@ -96,14 +106,17 @@ parser code {:
         scopeStack.push(name);
     }
 
-    // Entra a un scope nuevo (lo mete a la pila) y le genera una máscara
+    /**
+     * Entra a un scope nuevo y le genera un nombre unico según el tipo
+     * @param kind Tipo de bloque
+     */
     void pushAutoScope(String kind) {
         pushNamedScope(genScopeName(kind));
     }
 
     // Sale del scope actual
     void popScope() {
-        if (scopeStack.size() > 1) scopeStack.pop(); // nunca sacar world
+        if (scopeStack.size() > 1) scopeStack.pop();
     }
     
     void addError(String msg) {
@@ -112,8 +125,8 @@ parser code {:
     }
 
     /* Visibilidad hacia arriba:
-    Busca una variable/func/arreglo siguiendo la jerarquía de scopes
-    Si el símbolo no está en el current, sube al papá, y así hasta encontrarlo o llegar a world y poner null
+    busca una expresion o funcion siguiendo la jerarquia de scopes
+    Si el simbolo no está en el current, sube al papa, y asi hasta encontrarlo o llegar a world y poner null
     
      */
     SymInfo lookup(String id) {
@@ -147,7 +160,7 @@ parser code {:
         t.put(id, info);
     }
 
-    // Declara variables o parámetros y los mete a la tabla que corresponda (local o world)
+    // Declara variables o parametros y los mete a la tabla que corresponda
     void declareVar(String alcance, String tipo, String id, int line, int col, boolean isParam) {
         if ("world".equals(alcance)) {
             declareInScope("world", id, new SymInfo(isParam ? "PARAM" : "VAR", tipo, line, col));
@@ -194,7 +207,6 @@ parser code {:
         w.put("navidad", new SymInfo("MAIN", "coal", line, col));
     }
 
-    // Verifica llamadas, que ID exista en world y sea FUNC o MAIN
     void checkCall(String id, int line, int col) {
         HashMap<String, SymInfo> w = tablas.get("world");
         if (!w.containsKey(id)) {
@@ -207,7 +219,6 @@ parser code {:
         }
     }
 
-    // Verifica que el id exista y que sea ARR
     void checkArray(String id, int line, int col) {
         SymInfo si = lookup(id);
         if (si == null) {
@@ -220,8 +231,7 @@ parser code {:
     }
 
     void printTablas() {
-        System.out.println("\n================ TABLAS DE SIMBOLOS (JERARQUIA) ==============");
-        // Imprimir en orden jerárquico: world y luego lo otro
+        System.out.println("\n---------- TABLAS DE SIMBOLOS----------");
         System.out.println("Scope: world");
         for (Map.Entry<String, SymInfo> e : tablas.get("world").entrySet()) {
             System.out.println("  " + e.getKey() + " -> " + e.getValue());
@@ -238,19 +248,19 @@ parser code {:
         }
 
         if (!errores.isEmpty()) {
-            System.out.println("================ ERRORES/AVISOS ================");
+            System.out.println("---------- ERRORES/AVISOS ----------");
             for (String e : errores) System.out.println(e);
         }
-        System.out.println("=================================================\n");
+        System.out.println("------------------------------\n");
     }
 
-    /*======== ERRORES SINTACTICOS =========*/
+    /*----------errores sintacticos----------*/
     public void syntax_error(Symbol s) {
-        addError("[SINT] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
+        addError("[SINTACTICO] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
     }
 
     public void report_error(String message, Object info) {
-        addError("[SINT] " + message);
+        addError("[SINTACTICO] " + message);
     }
 
     private String terminalToString(Symbol s) {
@@ -265,10 +275,9 @@ parser code {:
 
 init with {: initTablas(); :};
 
-// Esperamos 1 conflicto shift/reduce en expresiones con paréntesis
-// CUP resuelve a favor de shift, que es el comportamiento correcto
 
-/* ------------TERMINALES------------ */
+/*
+----------TERMINALES----------*/
 
 terminal BLOCK_OPEN, BLOCK_CLOSE, NAVIDAD, GIFT, WORLD, INT, FLOAT, BOOLEAN, CHAR, STRING, LOCAL, COAL_TYPE;
 terminal DECIDE, OF, END, ELSE, LOOP, EXIT, WHEN, FOR, BREAK, RETURN;
@@ -281,7 +290,8 @@ terminal SHOW, GET;
 terminal INT_LIT, FLOAT_LIT, BOOLEAN_LIT, CHAR_LIT, STRING_LIT;
 terminal ID;
 
-/* ------------NO TERMINALES------------ */
+/*
+----------NO TERMINALES----------*/
 
 non terminal programa, funciones, funcion, main;
 non terminal tipo, literal, alcance;
@@ -295,7 +305,7 @@ non terminal casos, caso;
 non terminal arreglo, dim, decl_arreglo, creacion_arreglo;
 non terminal asignacion_elemento, acceso_arreglo;
 non terminal elementos, fila, filas, arreglo_init;
-non terminal tipo_arreglo, lit_array;
+non terminal lit_array;
 non terminal llamada, args;
 non terminal expresion;
 non terminal expr_aritm, term, power, factor;
@@ -303,75 +313,85 @@ non terminal expr_relacional, expresion_rel, operador_rel;
 non terminal expr_logica, expr_and, expr_not, expr_bool;
 non terminal io, show, show_arg, get, get_target;
 
-/* ------------INICIO------------ */
+/*
+----------INICIO----------*/
 
 start with programa;
 
-/* ------------PRODUCCIONES------------ */
+/*
+----------PROGRAMA----------*/
 
-programa ::=
-      funciones:f main:m
-      {:
-          Nodo n = new Nodo("programa");
-          n.addHijo((Nodo)f); // Hijo 1: Lista de funciones
-          n.addHijo((Nodo)m); // Hijo 2: Main (Navidad)
-          raizAST = n;
+/*
+----------PROGRAMA----------*/
+programa ::= 
+            funciones:f main:m
+            {: 
+                    Nodo n = new Nodo("programa");
+                    n.addHijo((Nodo)f); 
+                    n.addHijo((Nodo)m); 
+                    raizAST = n;
 
-          System.out.println("Programa reconocido.");
-          raizAST.arbol();
-          printTablas();
+                    System.out.println("Programa reconocido.");
+                    raizAST.arbol();
+                    printTablas();
 
-          RESULT = n;
-      :}
-    | main:m
-      {:
-          Nodo n = new Nodo("programa");
-          n.addHijo((Nodo)m);
-          raizAST = n;
+                    RESULT = n;
+            :}
+        | main:m
+            {: 
+                    Nodo n = new Nodo("programa");
+                    n.addHijo((Nodo)m);
+                    raizAST = n;
 
-          System.out.println("Programa reconocido.");
-          raizAST.arbol();
-          printTablas();
+                    System.out.println("Programa reconocido.");
+                    raizAST.arbol();
+                    printTablas();
 
-          RESULT = n;
-      :}
-    ;
+                    RESULT = n;
+            :}
+        ;
 
-funciones ::=
-      funciones:fs funcion:fn
-      {:
-          Nodo n = (Nodo)fs;
-          n.addHijo((Nodo)fn);
-          RESULT = n;
-      :}
-    | funcion:fn
-      {:
-          Nodo n = new Nodo("funciones");
-          n.addHijo((Nodo)fn);
-          RESULT = n;
-      :}
-    ;
+/*
+----------FUNCIONES----------*/
+funciones ::= 
+            funciones:fs funcion:fn
+            {: 
+                    Nodo n = (Nodo)fs;
+                    n.addHijo((Nodo)fn);
+                    RESULT = n;
+            :}
+        | funcion:fn
+            {: 
+                    Nodo n = new Nodo("funciones");
+                    n.addHijo((Nodo)fn);
+                    RESULT = n;
+            :}
+        ;
 
-/* -----Datos----- */
+/*
+----------DATOS----------*/
 
-tipo ::=
-      INT {:Nodo n=new Nodo("int");     n.setTipo("int");     RESULT=n; :}
-    | FLOAT {:Nodo n=new Nodo("float");   n.setTipo("float");   RESULT=n; :}
-    | BOOLEAN {:Nodo n=new Nodo("boolean"); n.setTipo("boolean"); RESULT=n; :}
-    | CHAR {:Nodo n=new Nodo("char");    n.setTipo("char");    RESULT=n; :}
-    | STRING {:Nodo n=new Nodo("string");  n.setTipo("string");  RESULT=n; :}
-    ;
+// tipo
+tipo ::= 
+            INT {:Nodo n=new Nodo("int");     n.setTipo("int");     RESULT=n; :}
+        | FLOAT {:Nodo n=new Nodo("float");   n.setTipo("float");   RESULT=n; :}
+        | BOOLEAN {:Nodo n=new Nodo("boolean"); n.setTipo("boolean"); RESULT=n; :}
+        | CHAR {:Nodo n=new Nodo("char");    n.setTipo("char");    RESULT=n; :}
+        | STRING {:Nodo n=new Nodo("string");  n.setTipo("string");  RESULT=n; :}
+        ;
 
-literal ::=
-      INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); RESULT=n; :}
-    | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); RESULT=n; :}
-    | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
-    | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); RESULT=n; :}
-    | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); RESULT=n; :}
-    ;
+// literal
+literal ::= 
+            INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); RESULT=n; :}
+        | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); RESULT=n; :}
+        | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
+        | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); RESULT=n; :}
+        | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); RESULT=n; :}
+        ;
 
 
 
+// alcance
 alcance ::= 
             WORLD
             {: Nodo n = new Nodo("world"); n.setTipo("world"); RESULT = n; :}
@@ -379,33 +399,36 @@ alcance ::=
             {: Nodo n = new Nodo("local"); n.setTipo("local"); RESULT = n; :}
         ;
 
-/* -----funciones----- */
+/*
+----------FUNCIONES----------
+*/
 
-params_opt ::=
-      params:p {: RESULT=(Nodo)p; :}
-    | /* empty */ {: RESULT=new Nodo("params_vacios"); :}
-    ;
+// params_opt
+params_opt ::= 
+            params:p {: RESULT=(Nodo)p; :}
+        | /* empty */ {: RESULT=new Nodo("params_vacios"); :}
+        ;
 
-params ::=
-      params:ps COMMA param:p
-      {:
-          Nodo n=(Nodo)ps;
-          n.addHijo(new Nodo(","));
-          n.addHijo((Nodo)p);
-          RESULT=n;
-      :}
-    | param:p
-      {:
-          Nodo n=new Nodo("params");
-          n.addHijo((Nodo)p);
-          RESULT=n;
-      :}
-    ;
+// params
+params ::= 
+            params:ps COMMA param:p
+            {: 
+                    Nodo n=(Nodo)ps;
+                    n.addHijo(new Nodo(","));
+                    n.addHijo((Nodo)p);
+                    RESULT=n;
+            :}
+        | param:p
+            {: 
+                    Nodo n=new Nodo("params");
+                    n.addHijo((Nodo)p);
+                    RESULT=n;
+            :}
+        ;
 
-param ::=
+param ::= 
       tipo:t ID:id
-      {:
-          // parámetros: se declaran en el scope de la función (no en el bloque)
+      {: 
           String idStr = id.toString();
           declareVar("local", ((Nodo)t).getTipo(), idStr, idleft, idright, true);
 
@@ -417,37 +440,38 @@ param ::=
       :}
     ;
 
-/* ----- main ----- */
-main ::=
+/*
+----------MAIN----------*/
+main ::= 
       COAL_TYPE NAVIDAD:nav
-      {:
-          declareMain(navleft, navright); // Registra navidad en world como MAIN
-          pushNamedScope("navidad"); // Crea y entra al scope "Navidad"
+      {: 
+          declareMain(navleft, navright); 
+          pushNamedScope("navidad"); 
       :}
       PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
-      {:
+      {: 
           Nodo n=new Nodo("main");
           n.addHijo(new Nodo("coal"));
           n.addHijo(new Nodo("navidad"));
           n.addHijo((Nodo)b);
 
-          // Salir del scope navidad (los bloques ya se hicieron pop solos)
           popScope();
 
           RESULT=n;
       :}
     ;
 
-/* ----- funcion ----- */
-funcion ::=
+/*
+----------FUNCION----------*/
+funcion ::= 
       GIFT tipo:t ID:id
-      {:
+      {: 
           String idStr = id.toString();
           declareFunc(idStr, ((Nodo)t).getTipo(), idleft, idright);
           pushNamedScope(idStr);
       :}
       PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE bloque:b
-      {:
+      {: 
           String idStr = id.toString();
           Nodo n=new Nodo("funcion");
           n.addHijo(new Nodo("gift"));
@@ -457,19 +481,20 @@ funcion ::=
           n.addHijo((Nodo)po);
           n.addHijo((Nodo)b);
 
-          // salir del scope de función
           popScope();
 
           RESULT=n;
       :}
     ;
 
-/* -----Declaraciones----- */
+/*
+----------DECLARACIONES----------*/
 
-creacion ::=
+// creacion
+creacion ::= 
       alcance:a tipo:t ID:id
-      {:
-          String alc = ((Nodo)a).getTipo(); // world/local
+      {: 
+          String alc = ((Nodo)a).getTipo();
           String idStr = id.toString();
           declareVar(alc, ((Nodo)t).getTipo(), idStr, idleft, idright, false);
 
@@ -482,21 +507,22 @@ creacion ::=
       :}
     ;
 
-creacion_sentencia ::=
+// creacion_sentencia
+creacion_sentencia ::= 
       creacion:c ENDL
-      {:
+      {: 
           Nodo n=new Nodo("creacion_sent");
           n.addHijo((Nodo)c);
           RESULT=n;
       :}
     ;
 
-asignacion ::=
+// asignacion
+asignacion ::= 
       alcance:a tipo:t ID:id ASSIGN expresion:e
-      {:
+      {: 
           String alc=((Nodo)a).getTipo();
           String idStr = id.toString();
-          // en tu lenguaje esto es declaracion+asignacion
           declareVar(alc, ((Nodo)t).getTipo(), idStr, idleft, idright, false);
 
           Nodo n=new Nodo("asignacion_decl");
@@ -510,12 +536,12 @@ asignacion ::=
       :}
     ;
 
-/* Reasignación simple (para variables ya declaradas) */
-reasignacion ::=
+// reasignacion
+reasignacion ::= 
       ID:id ASSIGN expresion:e
-      {:
+      {: 
           String idStr = id.toString();
-          // checkID(idStr, idleft, idright); // Verificar si existe
+          checkID(idStr, idleft, idright); // Verificar si existe
           Nodo n=new Nodo("reasignacion");
           Nodo nid=new Nodo(idStr);
           n.addHijo(nid);
@@ -525,24 +551,27 @@ reasignacion ::=
       :}
     ;
 
-reasignacion_sentencia ::=
+// reasignacion_sentencia
+reasignacion_sentencia ::= 
       reasignacion:r ENDL
-      {:
+      {: 
           Nodo n=new Nodo("reasignacion_sent");
           n.addHijo((Nodo)r);
           RESULT=n;
       :}
     ;
 
-asignacion_sentencia ::=
+// asignacion_sentencia
+asignacion_sentencia ::= 
       asignacion:a ENDL
-      {:
+      {: 
           Nodo n=new Nodo("asignacion_sent");
           n.addHijo((Nodo)a);
           RESULT=n;
       :}
     ;
 
+// unario
 unario ::= INCREMENT ID:id
                  {: Nodo n = new Nodo("++pre"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
              | DECREMENT ID:id
@@ -561,28 +590,29 @@ unario ::= INCREMENT ID:id
                  {: Nodo n = new Nodo("--post"); n.addHijo((Nodo)a); RESULT = n; :}
              ;
 
-/* -----sentencias----- */
+/*
+----------SENTENCIAS----------
+*/
 
-sentencias ::=
-      sentencias:ss sentencia:s
-      {:
-          Nodo n=(Nodo)ss;
-          n.addHijo((Nodo)s);
-          RESULT=n;
-      :}
-    | sentencia:s
-      {:
-          Nodo n=new Nodo("sentencias");
-          n.addHijo((Nodo)s);
-          RESULT=n;
-      :}
-    ;
+// sentencias
+sentencias ::= 
+            sentencias:ss sentencia:s
+            {: 
+                    Nodo n=(Nodo)ss;
+                    n.addHijo((Nodo)s);
+                    RESULT=n;
+            :}
+        | sentencia:s
+            {: 
+                    Nodo n=new Nodo("sentencias");
+                    n.addHijo((Nodo)s);
+                    RESULT=n;
+            :}
+        ;
     
-/* Una sentencia puede ser:
-     - declaración, asignación, estructura, expr endl, io, break, return
-     - o error ENDL (panic mode) 
-    Cada caso crea un nodo distinto
-    */    
+/*
+----------SENTENCIA----------
+*/
 
 sentencia ::=
       asignacion_sentencia:a {: RESULT = a; :}
@@ -615,7 +645,7 @@ sentencia ::=
       :}
     ;
 
-// BLOQUE: por cada ¡ ! crea una tabla nueva (máscara) 
+// BLOQUE
 bloque ::=
       BLOCK_OPEN sentencias:s BLOCK_CLOSE
       {:
@@ -639,7 +669,8 @@ bloque ::=
       :}
     ;
 
-/* ----- Control ----- */
+/*
+----------CONTROL----------*/
 estructura ::=
       for:f {: RESULT = f; :}
     | loop:l {: RESULT = l; :}
@@ -647,14 +678,14 @@ estructura ::=
     | arreglo:a {: RESULT = a; :}
     ;
 
-/* for_init va DENTRO del scope del for */
+// for_init
 for_init ::=
       asignacion:a {: RESULT = a; :}
     | creacion:c {: RESULT = c; :}
     | reasignacion:r {: RESULT = r; :}
     ;
 
-// FOR: abre scope propio ANTES de parsear init 
+// FOR
 for ::=
       FOR PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b ENDL
       {:
@@ -667,8 +698,7 @@ for ::=
       :}
     ;
 
-// LOOP: estructura tipo Ada sin llaves de bloque
-// loop instrucciones exit when condicion endl end loop endl
+// LOOP
 loop ::=
       LOOP sentencias:s EXIT WHEN expr_logica:cond ENDL END LOOP ENDL
       {:
@@ -704,7 +734,7 @@ caso ::=
       :}
     ;
 
-// DECIDE: scope propio del decide_of 
+// DECIDE OF
 decide_of ::=
       DECIDE OF casos:cs END DECIDE ENDL
       {:
@@ -721,7 +751,8 @@ decide_of ::=
       :}
     ;
 
-/* -----arreglos----- */
+/*----------ARREGLOS----------
+*/
 
 arreglo ::= creacion_arreglo:c {: RESULT = c; :}
     ;
@@ -775,7 +806,9 @@ lit_array ::= INT_LIT:i {: Nodo n = new Nodo(i); n.setTipo("int"); RESULT = n; :
            | CHAR_LIT:c {: Nodo n = new Nodo(c); n.setTipo("char"); RESULT = n; :}
            ;
 
-/* -----llamadas----- */
+/*
+----------LLAMADAS A FUNCIONES----------
+*/
 
 llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
         {: Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)a); RESULT = n; :}
@@ -789,12 +822,14 @@ args ::= args:as COMMA expresion:e
         {: Nodo n = new Nodo("args"); n.addHijo((Nodo)e); RESULT = n; :}
     ;
 
-/* -----Expresiones----- */
+/*
+----------EXPRESIONES----------
+*/
 
 expresion ::= expr_logica:e {: RESULT = e; :}
             ;
 
-/* -----aritmeicas----- */
+// ARITMÉTICAS
 
 expr_aritm ::= expr_aritm:e1 PLUS term:e2
         {: Nodo n = new Nodo("+"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
@@ -838,7 +873,7 @@ factor ::= literal:l
         {: RESULT = e; :}
     ;
 
-/* -----relacionales----- */
+// RELACIONALES
 
 expr_relacional ::= expresion_rel:e1 operador_rel:op expresion_rel:e2
     {: Nodo n = new Nodo(op); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
@@ -855,7 +890,7 @@ operador_rel ::= LESS_THAN      {: RESULT = "<"; :}
               | DIFFERENT      {: RESULT = "!="; :}
               ;
 
-/* -----logicas----- */
+// LOGICAS:
 
 expr_logica ::= expr_logica:e1 OR expr_and:e2
         {: Nodo n = new Nodo("or"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
