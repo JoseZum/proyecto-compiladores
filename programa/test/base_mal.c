@@ -1,16 +1,14 @@
 
-world string _s1_ endl |comentario linea###
+ world string _s1_ endl |comentario linea###
 
 є !@#$$%^& multilinea
   э
-s
-gift float _mi_  ¿ int _dif_, char _otra_ ? ¡ 
-	| local int _otra_ endl
-	local int miArr[2][2] = ¡ ¡1,2! , ¡3,4! ! endl
-	local string _str_="Hola  endl ~&|! endl & ?  mundo" endl 
-	local int _var_2 = 0 endl
-	local int _var_ = 0 endl
 
+gitf float _mi_  ¿ int _dif_, char _otra_ ? ¡ 
+	local int _otra_ endl
+	local int miArr[2][2] endl
+	local int miArr[2][2] = ¡¡1,2!¡3,4!! endl
+	local string _str_="Hola  endl ~&|! endl & ?  mundo" endl 
 	for   ¿ int i = 0 endl  i < 10 endl ++i ?
 	 ¡ 
 		loop
@@ -43,7 +41,7 @@ gift float _mi_  ¿ int _dif_, char _otra_ ? ¡
 			end  decide   endl 
 		 !
 		 end  decide   endl 
-	 ! endl
+	 ! 
 	return 1 endl  
   ! 
 
