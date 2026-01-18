@@ -1,0 +1,28 @@
+| Test 13: Reasignación de variables |
+| Prueba modificación de variables existentes |
+
+coal navidad ¿? ¡
+    local int x = 10 endl
+    show ¿x? endl
+    
+    | Reasignación simple |
+    x = 20 endl
+    show ¿x? endl
+    
+    | Reasignación con expresión |
+    x = x + 5 endl
+    show ¿x? endl
+    
+    | Reasignación con operación compleja |
+    x = (x * 2) - 10 endl
+    show ¿x? endl
+    
+    | Múltiples reasignaciones |
+    local int a = 1 endl
+    local int b = 2 endl
+    local int temp = a endl
+    a = b endl
+    b = temp endl
+    show ¿a? endl
+    show ¿b? endl
+!

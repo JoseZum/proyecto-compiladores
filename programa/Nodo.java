@@ -32,18 +32,41 @@ public class Nodo {
         this.hijos.add(hijo);
     }
 
+    /**
+     * Imprime el árbol sintáctico de forma visual
+     */
     public void arbol() {
-        if (this.hijos.size() > 0) {
-            System.out.println("Padre: " + this.lexema);
-            System.out.println("Hijos:");
-            for (Nodo hijo : this.hijos) {
-                System.out.println("\t" + hijo.lexema);
-            }
-            for (Nodo hijo : this.hijos) {
-                hijo.arbol();
-            }
-        } else {
-            System.out.println("Nodo: " + this.lexema);
+        System.out.println("\n╔══════════════════════════════════════════════════════════╗");
+        System.out.println("║              ÁRBOL SINTÁCTICO (AST)                       ║");
+        System.out.println("╚══════════════════════════════════════════════════════════╝\n");
+        imprimirArbol("", true);
+    }
+
+    /**
+     * Método recursivo para imprimir el árbol con formato visual
+     * @param prefijo El prefijo de indentación actual
+     * @param esUltimo Si este nodo es el último hijo de su padre
+     */
+    private void imprimirArbol(String prefijo, boolean esUltimo) {
+        // Determinar el conector
+        String conector = esUltimo ? "└── " : "├── ";
+        
+        // Construir la etiqueta del nodo
+        String etiqueta = this.lexema;
+        if (this.tipo != null && !this.tipo.isEmpty()) {
+            etiqueta += " : " + this.tipo;
+        }
+        
+        // Imprimir este nodo
+        System.out.println(prefijo + conector + etiqueta);
+        
+        // Preparar el prefijo para los hijos
+        String prefijoHijos = prefijo + (esUltimo ? "    " : "│   ");
+        
+        // Imprimir los hijos
+        for (int i = 0; i < hijos.size(); i++) {
+            boolean ultimoHijo = (i == hijos.size() - 1);
+            hijos.get(i).imprimirArbol(prefijoHijos, ultimoHijo);
         }
     }
 }

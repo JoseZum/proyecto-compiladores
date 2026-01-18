@@ -1,0 +1,26 @@
+| Test 06: Operadores unarios |
+| Prueba ++, -- (prefijo y postfijo), - (negación) |
+
+coal navidad ¿? ¡
+    local int contador = 0 endl
+    
+    | Incremento prefijo |
+    ++contador endl
+    show ¿contador? endl
+    
+    | Decremento prefijo |
+    --contador endl
+    show ¿contador? endl
+    
+    | Incremento postfijo |
+    contador++ endl
+    show ¿contador? endl
+    
+    | Decremento postfijo |
+    contador-- endl
+    show ¿contador? endl
+    
+    | Negación |
+    local int negativo = -5 endl
+    show ¿negativo? endl
+!

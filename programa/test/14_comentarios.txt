@@ -1,0 +1,22 @@
+| Test 14: Comentarios |
+| Este archivo prueba los comentarios del lenguaje |
+
+| Comentario de una línea |
+
+|
+  Comentario
+  de múltiples
+  líneas
+|
+
+coal navidad ¿? ¡
+    | Comentario dentro del código |
+    local int x = 10 endl | Declaración de x |
+    
+    |
+      Bloque de comentario
+      explicando la lógica
+    |
+    
+    show ¿x? endl | Mostrar valor |
+!

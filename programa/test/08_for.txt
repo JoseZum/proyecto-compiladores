@@ -1,0 +1,19 @@
+| Test 08: Estructura for |
+| Prueba ciclos for con diferentes configuraciones |
+
+coal navidad ¿? ¡
+    | For básico ascendente |
+    for ¿local int i = 1 endl i <= 5 endl ++i? ¡
+        show ¿i? endl
+    ! endl
+    
+    | For descendente |
+    for ¿local int j = 5 endl j >= 1 endl --j? ¡
+        show ¿j? endl
+    ! endl
+    
+    | For con incremento mayor |
+    for ¿local int k = 0 endl k < 10 endl k = k + 2? ¡
+        show ¿k? endl
+    ! endl
+!

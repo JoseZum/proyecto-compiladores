@@ -1,0 +1,26 @@
+| Test 03: Expresiones aritméticas |
+| Prueba operadores +, -, *, /, % |
+
+coal navidad ¿? ¡
+    local int a = 10 endl
+    local int b = 3 endl
+    
+    | Operaciones básicas |
+    local int suma = a + b endl
+    local int resta = a - b endl
+    local int mult = a * b endl
+    local int div = a / b endl
+    local int mod = a % b endl
+    
+    | Expresiones compuestas |
+    local int compuesta = (a + b) * 2 endl
+    local int anidada = ((a * 2) + (b * 3)) / 2 endl
+    
+    | Mostrar resultados |
+    show ¿suma? endl
+    show ¿resta? endl
+    show ¿mult? endl
+    show ¿div? endl
+    show ¿mod? endl
+    show ¿compuesta? endl
+!

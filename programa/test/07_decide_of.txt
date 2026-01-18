@@ -1,0 +1,33 @@
+| Test 07: Estructura decide of |
+| Prueba condicionales con múltiples casos |
+
+coal navidad ¿? ¡
+    local int nota = 85 endl
+    
+    | decide of con múltiples casos |
+    decide of
+        nota >= 90 -> ¡
+            show ¿"Excelente"? endl
+        !
+        nota >= 80 -> ¡
+            show ¿"Muy bien"? endl
+        !
+        nota >= 70 -> ¡
+            show ¿"Bien"? endl
+        !
+        nota >= 60 -> ¡
+            show ¿"Suficiente"? endl
+        !
+    else ¡
+        show ¿"Reprobado"? endl
+    !
+    end decide endl
+    
+    | decide of simple |
+    local int x = 10 endl
+    decide of
+        x > 5 -> ¡
+            show ¿"Mayor que 5"? endl
+        !
+    end decide endl
+!

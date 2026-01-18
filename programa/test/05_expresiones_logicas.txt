@@ -1,0 +1,20 @@
+| Test 05: Expresiones lógicas |
+| Prueba operadores &&, ||, ! |
+
+coal navidad ¿? ¡
+    local boolean a = true endl
+    local boolean b = false endl
+    
+    | Operadores lógicos |
+    local boolean andResult = a && b endl
+    local boolean orResult = a || b endl
+    local boolean notResult = !a endl
+    
+    | Expresiones compuestas |
+    local boolean compuesta = (a || b) && !b endl
+    
+    show ¿andResult? endl
+    show ¿orResult? endl
+    show ¿notResult? endl
+    show ¿compuesta? endl
+!

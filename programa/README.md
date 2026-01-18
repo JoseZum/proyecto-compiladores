@@ -1,55 +1,67 @@
-# Compiladores - Guía Rápida
+# Compilador Navidad - Análisis Léxico y Sintáctico
 
-## Iniciar Docker
+Compilador para el lenguaje **Navidad** desarrollado con JFlex y CUP.
 
-```powershell
-# En Windows PowerShell (desde /programa)
+## 📋 Requisitos
+
+- Docker y Docker Compose
+
+## 🚀 Comandos
+
+### 1. Crear y levantar el contenedor Docker
+
+```bash
+cd programa
 docker compose up -d --build
-docker compose exec compilador bash
 ```
 
-## Probar Lexer
+### 2. Generar Lexer + Parser + Compilar
 
 ```bash
-jflex lexer.flex
-javac Lexer.java TestLexer.java
-java TestLexer test.txt
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && java java_cup.Main -parser parser -symbols sym -expect 1 parser.cup && javac *.java'
 ```
 
-## Build Completo (Lexer + Parser)
+### 3. Ejecutar el compilador
 
 ```bash
-# Genera lexer, parser y compila todo
-build
-
-# Ejecutar con archivo de prueba
-java TestLexer test.txt 
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && java Main test_completo.txt'
 ```
 
-## Limpiar
+## ⚡ Todo-en-Uno (desde cero)
 
 ```bash
-clean
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && java java_cup.Main -parser parser -symbols sym -expect 1 parser.cup && javac *.java && java Main test_completo.txt'
 ```
 
-## Flujo Completo desde Cero
+## 📤 Salida del Compilador
 
-```powershell
-# 1. Levantar Docker (PowerShell)
-docker compose up -d --build
-docker compose exec compilador bash
+El programa `Main` ejecuta dos fases:
 
-# 2. Dentro del contenedor - Probar solo lexer
-jflex lexer.flex
-javac Lexer.java TestLexer.java
-java TestLexer test.txt
+1. **Fase 1 - Análisis Léxico:** Muestra todos los tokens y genera `tokens_output.txt`
+2. **Fase 2 - Análisis Sintáctico:** Valida gramática, construye AST y muestra tablas de símbolos
 
-# 3. Build completo (lexer + parser)
-build
+## 🧹 Limpiar archivos generados
 
-# 4. Ejecutar
-java TestLexer test.txt 
-
-# 5. Limpiar si necesitas recompilar
-clean
+```bash
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && rm -f *.class Lexer.java parser.java sym.java tokens_output.txt'
 ```
+
+## 🔄 Detener/Reiniciar contenedor
+
+```bash
+# Detener
+docker compose down
+
+# Reiniciar
+docker compose up -d
+```
+
+## 📁 Estructura del Proyecto
+
+| Archivo | Descripción |
+|---------|-------------|
+| `lexer.flex` | Especificación JFlex para análisis léxico |
+| `parser.cup` | Gramática CUP con acciones semánticas |
+| `Nodo.java` | Clase para nodos del AST |
+| `Main.java` | Punto de entrada (ejecuta léxico + sintáctico) |
+| `test_completo.txt` | Archivo de prueba con todas las estructuras |

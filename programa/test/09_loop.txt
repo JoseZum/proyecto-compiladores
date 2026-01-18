@@ -1,0 +1,23 @@
+| Test 09: Estructura loop (estilo Ada) |
+| Prueba ciclos loop con exit when |
+
+coal navidad ¿? ¡
+    | Loop básico con exit when |
+    local int contador = 0 endl
+    loop
+        show ¿contador? endl
+        ++contador endl
+    exit when contador >= 5 endl
+    end loop endl
+    
+    | Loop con condición más compleja |
+    local int x = 10 endl
+    local int y = 0 endl
+    loop
+        y = y + x endl
+        --x endl
+    exit when x <= 0 endl
+    end loop endl
+    
+    show ¿y? endl
+!

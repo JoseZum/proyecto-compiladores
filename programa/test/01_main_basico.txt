@@ -1,0 +1,6 @@
+| Test 01: Main básico |
+| Prueba la estructura mínima de un programa Navidad |
+
+coal navidad ¿? ¡
+    show ¿"Hola Navidad!"? endl
+!
