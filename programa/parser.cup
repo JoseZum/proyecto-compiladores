@@ -380,6 +380,18 @@ funciones ::=
           n.addHijo((Nodo)fn);
           RESULT = n;
       :}
+    | funciones error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
+          Nodo n = new Nodo("funciones_error");
+          RESULT = n;
+      :}
+    | error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
+          Nodo n = new Nodo("funciones_error");
+          RESULT = n;
+      :}
     ;
 
 /*
@@ -395,6 +407,18 @@ globales ::=
       {:
           Nodo n = new Nodo("globales");
           n.addHijo((Nodo)dg);
+          RESULT = n;
+      :}
+    | globales error ENDL
+      {:
+          addError("[PANIC] Error en declaración global, sincronizado en ENDL.");
+          Nodo n = new Nodo("globales_error");
+          RESULT = n;
+      :}
+    | error ENDL
+      {:
+          addError("[PANIC] Error en declaración global, sincronizado en ENDL.");
+          Nodo n = new Nodo("globales_error");
           RESULT = n;
       :}
     ;
