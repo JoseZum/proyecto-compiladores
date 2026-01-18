@@ -536,6 +536,12 @@ main ::=
 
           RESULT=n;
       :}
+    | COAL_TYPE NAVIDAD error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Main navidad mal formado, sincronizado en cierre de bloque.");
+          popScope();
+          RESULT=new Nodo("main_error");
+      :}
     ;
 
 /*
@@ -561,6 +567,12 @@ funcion ::=
           popScope();
 
           RESULT=n;
+      :}
+    | GIFT error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Función mal formada, sincronizado en cierre de bloque.");
+          popScope();
+          RESULT=new Nodo("funcion_error");
       :}
     ;
 
@@ -685,6 +697,12 @@ sentencias ::=
                     n.addHijo((Nodo)s);
                     RESULT=n;
             :}
+        | sentencias error sentencia
+            {:
+                    addError("[PANIC] Error en sentencias, recuperando en siguiente sentencia.");
+                    Nodo n=new Nodo("sentencias_error");
+                    RESULT=n;
+            :}
         ;
     
 /*
@@ -786,6 +804,16 @@ for ::=
           n.addHijo((Nodo)b);
           RESULT=n;
       :}
+    | FOR PARENTHESIS_OPEN for_init ENDL expr_logica ENDL unario PARENTHESIS_CLOSE bloque error
+      {:
+          addError("[PANIC] Estructura FOR: falta ENDL después del bloque.");
+          RESULT=new Nodo("for_error");
+      :}
+    | FOR error ENDL
+      {:
+          addError("[PANIC] Estructura FOR inválida, sincronizado en ENDL.");
+          RESULT=new Nodo("for_error");
+      :}
     ;
 
 // LOOP
@@ -796,6 +824,11 @@ loop ::=
           n.addHijo((Nodo)s);
           n.addHijo((Nodo)cond);
           RESULT=n;
+      :}
+    | LOOP error END LOOP ENDL
+      {:
+          addError("[PANIC] Estructura LOOP inválida, sincronizado en END LOOP.");
+          RESULT=new Nodo("loop_error");
       :}
     ;
 
@@ -822,6 +855,13 @@ caso ::=
           n.addHijo((Nodo)b);
           RESULT=n;
       :}
+    | error ARROW bloque:b
+      {:
+          addError("[PANIC] Condición de caso inválida, sincronizado en ARROW.");
+          Nodo n=new Nodo("caso_error");
+          n.addHijo((Nodo)b);
+          RESULT=n;
+      :}
     ;
 
 // DECIDE OF
@@ -838,6 +878,11 @@ decide_of ::=
           n.addHijo((Nodo)cs);
           n.addHijo((Nodo)b);
           RESULT=n;
+      :}
+    | DECIDE OF error END DECIDE ENDL
+      {:
+          addError("[PANIC] Estructura DECIDE OF inválida, sincronizado en END DECIDE.");
+          RESULT=new Nodo("decide_of_error");
       :}
     ;
 
@@ -905,6 +950,11 @@ creacion_arreglo ::=
             n.addHijo((Nodo)init);
             RESULT = n;
         :}
+    | alcance error ENDL
+      {:
+          addError("[PANIC] Declaración de arreglo inválida, sincronizado en ENDL.");
+          RESULT=new Nodo("arreglo_error");
+      :}
     ;
 
 asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
