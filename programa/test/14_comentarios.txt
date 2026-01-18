@@ -3,20 +3,20 @@
 
 | Comentario de una línea |
 
-|
+є
   Comentario
   de múltiples
   líneas
-|
+э
 
 coal navidad ¿? ¡
     | Comentario dentro del código |
     local int x = 10 endl | Declaración de x |
     
-    |
+    є
       Bloque de comentario
       explicando la lógica
-    |
+    э
     
     show ¿x? endl | Mostrar valor |
 !

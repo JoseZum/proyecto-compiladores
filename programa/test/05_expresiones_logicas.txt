@@ -6,12 +6,12 @@ coal navidad ¿? ¡
     local boolean b = false endl
     
     | Operadores lógicos |
-    local boolean andResult = a && b endl
-    local boolean orResult = a || b endl
-    local boolean notResult = !a endl
+    local boolean andResult = a @ b endl
+    local boolean orResult = a ~ b endl
+    local boolean notResult = Σa endl
     
     | Expresiones compuestas |
-    local boolean compuesta = (a || b) && !b endl
+    local boolean compuesta = (a ~ b) @ Σb endl
     
     show ¿andResult? endl
     show ¿orResult? endl

@@ -22,7 +22,7 @@ gift int maximo ¿int x, int y? ¡
         x > y -> ¡
             return x endl
         !
-    else ¡
+    else -> ¡
         return y endl
     !
     end decide endl

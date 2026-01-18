@@ -26,7 +26,7 @@ coal navidad ¿? ¡
                 break endl
             !
         end decide endl
-    exit when x >= 100 endl
+    exit when ¿x >= 100? endl
     end loop endl
     
     show ¿x? endl

@@ -7,7 +7,7 @@ coal navidad ¿? ¡
     loop
         show ¿contador? endl
         ++contador endl
-    exit when contador >= 5 endl
+    exit when ¿contador >= 5? endl
     end loop endl
     
     | Loop con condición más compleja |
@@ -16,7 +16,7 @@ coal navidad ¿? ¡
     loop
         y = y + x endl
         --x endl
-    exit when x <= 0 endl
+    exit when ¿x <= 0? endl
     end loop endl
     
     show ¿y? endl

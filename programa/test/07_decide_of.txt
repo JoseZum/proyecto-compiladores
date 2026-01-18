@@ -18,7 +18,7 @@ coal navidad ¿? ¡
         nota >= 60 -> ¡
             show ¿"Suficiente"? endl
         !
-    else ¡
+    else -> ¡
         show ¿"Reprobado"? endl
     !
     end decide endl
