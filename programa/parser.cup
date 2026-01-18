@@ -302,7 +302,7 @@ non terminal unario;
 non terminal sentencias, sentencia, bloque;
 non terminal estructura, for_init, for, loop, decide_of;
 non terminal casos, caso;
-non terminal arreglo, dim, decl_arreglo, creacion_arreglo;
+non terminal dim, decl_arreglo, creacion_arreglo;
 non terminal asignacion_elemento, acceso_arreglo;
 non terminal elementos, fila, filas, arreglo_init;
 non terminal lit_array;
@@ -695,6 +695,7 @@ sentencia ::=
       asignacion_sentencia:a {: RESULT = a; :}
     | reasignacion_sentencia:r {: RESULT = r; :}
     | creacion_sentencia:c {: RESULT = c; :}
+    | creacion_arreglo:ca {: RESULT = ca; :}
     | estructura:e {: RESULT = e; :}
     | expresion:e ENDL
       {:
@@ -752,7 +753,6 @@ estructura ::=
       for:f {: RESULT = f; :}
     | loop:l {: RESULT = l; :}
     | decide_of:d {: RESULT = d; :}
-    | arreglo:a {: RESULT = a; :}
     ;
 
 // for_init
@@ -819,7 +819,7 @@ decide_of ::=
           n.addHijo((Nodo)cs);
           RESULT=n;
       :}
-    | DECIDE OF casos:cs ELSE bloque:b END DECIDE ENDL
+    | DECIDE OF casos:cs ELSE ARROW bloque:b END DECIDE ENDL
       {:
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
@@ -830,10 +830,6 @@ decide_of ::=
 
 /*----------ARREGLOS----------
 */
-
-arreglo ::= creacion_arreglo:c {: RESULT = c; :}
-    ;
-  
 
 dim ::= ARRAY_OPEN INT_LIT:d1 ARRAY_CLOSE ARRAY_OPEN INT_LIT:d2 ARRAY_CLOSE
     {: Nodo n = new Nodo("dim"); Nodo n1 = new Nodo(d1); Nodo n2 = new Nodo(d2); n.addHijo(n1); n.addHijo(n2); RESULT = n; :}
