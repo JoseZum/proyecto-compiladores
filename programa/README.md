@@ -24,13 +24,13 @@ docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && ja
 ### 3. Ejecutar el compilador
 
 ```bash
-docker exec compiladores_pp1 bash -c 'cd /app/proyecto && java Main test_completo.txt'
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && java Main test/01_main_basico.txt'
 ```
 
 ## ⚡ Todo-en-Uno (desde cero)
 
 ```bash
-docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && java java_cup.Main -parser parser -symbols sym -expect 1 parser.cup && javac *.java && java Main test_completo.txt'
+docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && java java_cup.Main -parser parser -symbols sym -expect 1 parser.cup && javac *.java && java Main test/01_main_basico.txt'
 ```
 
 ## 📤 Salida del Compilador
