@@ -320,36 +320,67 @@ start with programa;
 
 /*
 ----------PROGRAMA----------*/
-
-/*
-----------PROGRAMA----------*/
-programa ::= 
-            funciones:f main:m
-            {: 
-                    Nodo n = new Nodo("programa");
-                    n.addHijo((Nodo)f); 
-                    n.addHijo((Nodo)m); 
-                    raizAST = n;
-
-                    System.out.println("Programa reconocido.");
-                    raizAST.arbol();
-                    printTablas();
-
-                    RESULT = n;
-            :}
-        | main:m
-            {: 
-                    Nodo n = new Nodo("programa");
-                    n.addHijo((Nodo)m);
-                    raizAST = n;
-
-                    System.out.println("Programa reconocido.");
-                    raizAST.arbol();
-                    printTablas();
-
-                    RESULT = n;
-            :}
-        ;
+programa ::=
+      globales funciones main
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)$1); // globales
+          n.addHijo((Nodo)$2); // funciones
+          n.addHijo((Nodo)$3); // main
+          raizAST = n;
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+          RESULT = n;
+      :}
+    | globales main
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)$1); // globales
+          n.addHijo((Nodo)$2); // main
+          raizAST = n;
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+          RESULT = n;
+      :}
+    | funciones main
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)$1);
+          n.addHijo((Nodo)$2);
+          raizAST = n;
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+          RESULT = n;
+      :}
+    | main
+      {:
+          Nodo n = new Nodo("programa");
+          n.addHijo((Nodo)$1);
+          raizAST = n;
+          System.out.println("Programa reconocido.");
+          raizAST.arbol();
+          printTablas();
+          RESULT = n;
+      :}
+    ;
+    
+funciones ::=
+      funciones:fs funcion:fn
+      {:
+          Nodo n = (Nodo)fs;
+          n.addHijo((Nodo)fn);
+          RESULT = n;
+      :}
+    | funcion:fn
+      {:
+          Nodo n = new Nodo("funciones");
+          n.addHijo((Nodo)fn);
+          RESULT = n;
+      :}
+    ;
 
 /*
 ----------FUNCIONES----------*/
