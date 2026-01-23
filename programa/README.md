@@ -36,3 +36,8 @@ docker exec compiladores_pp1 bash -c 'cd /app/proyecto && jflex lexer.flex && ja
 ## Borrar innecesarios
 
 rm -f Lexer.class Lexer.java Main.class Nodo.class TestLexer.class parser$CUP$parser$actions.class parser$SymInfo.class parser.class parser.java sym.class sym.java test_completo.txt tokens_output.txt 
+
+
+docker exec -it compiladores_pp1 bash
+
+java Main "test/ejemplo código full.sintactico.base 7.c"

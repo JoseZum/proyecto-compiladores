@@ -31,6 +31,7 @@ parser code {:
             this.col = col;
         }
 
+        // Constructores para arreglos
         SymInfo(String kind, String type, int dim1, int dim2, int line, int col) {
             this.kind = kind;
             this.type = type;
@@ -102,7 +103,7 @@ parser code {:
      */
     void pushNamedScope(String name) {
         if (!tablas.containsKey(name)) tablas.put(name, new HashMap<>());
-        if (!parentScope.containsKey(name)) parentScope.put(name, currentScope());
+        if (!parentScope.containsKey(name)) parentScope.put(name, currentScope()); // si no tiene padre, se le pone el current
         scopeStack.push(name);
     }
 
@@ -258,6 +259,7 @@ parser code {:
     public void syntax_error(Symbol s) {
         addError("[SINTACTICO] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
     }
+    //“cerca de” = el token con el que el parser se dio cuenta de que ya no puede continuar.
 
     public void report_error(String message, Object info) {
         addError("[SINTACTICO] " + message);
@@ -293,7 +295,7 @@ terminal ID;
 /*
 ----------NO TERMINALES----------*/
 
-non terminal programa, funciones, funcion, main, globales, decl_global;
+non terminal programa, funciones, funcion, main, globales, decl_global, declaraciones_top, decl_top;
 non terminal tipo, literal, alcance;
 non terminal params, params_opt, param;
 non terminal creacion, creacion_sentencia, asignacion, asignacion_sentencia;
@@ -320,34 +322,12 @@ start with programa;
 
 /*
 ----------PROGRAMA----------*/
+/* Permite mezclar globales y funciones en cualquier orden antes de main */
 programa ::=
-      globales:g funciones:f main:m
+      declaraciones_top:dt main:m
       {:
           Nodo n = new Nodo("programa");
-          n.addHijo((Nodo)g); // globales
-          n.addHijo((Nodo)f); // funciones
-          n.addHijo((Nodo)m); // main
-          raizAST = n;
-          System.out.println("Programa reconocido.");
-          raizAST.arbol();
-          printTablas();
-          RESULT = n;
-      :}
-    | globales:g main:m
-      {:
-          Nodo n = new Nodo("programa");
-          n.addHijo((Nodo)g); // globales
-          n.addHijo((Nodo)m); // main
-          raizAST = n;
-          System.out.println("Programa reconocido.");
-          raizAST.arbol();
-          printTablas();
-          RESULT = n;
-      :}
-    | funciones:f main:m
-      {:
-          Nodo n = new Nodo("programa");
-          n.addHijo((Nodo)f);
+          n.addHijo((Nodo)dt);
           n.addHijo((Nodo)m);
           raizAST = n;
           System.out.println("Programa reconocido.");
@@ -366,62 +346,57 @@ programa ::=
           RESULT = n;
       :}
     ;
-    
-funciones ::=
-      funciones:fs funcion:fn
-      {:
-          Nodo n = (Nodo)fs;
-          n.addHijo((Nodo)fn);
-          RESULT = n;
-      :}
-    | funcion:fn
-      {:
-          Nodo n = new Nodo("funciones");
-          n.addHijo((Nodo)fn);
-          RESULT = n;
-      :}
-    | funciones error BLOCK_CLOSE
-      {:
-          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
-          Nodo n = new Nodo("funciones_error");
-          RESULT = n;
-      :}
-    | error BLOCK_CLOSE
-      {:
-          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
-          Nodo n = new Nodo("funciones_error");
-          RESULT = n;
-      :}
-    ;
 
-/*
-----------GLOBALES----------*/
-globales ::=
-      globales:gs decl_global:dg
+/* Lista de declaraciones de nivel superior (globales y funciones mezcladas) */
+declaraciones_top ::=
+      declaraciones_top:dt decl_top:d
       {:
-          Nodo n = (Nodo)gs;
-          n.addHijo((Nodo)dg);
+          Nodo n = (Nodo)dt;
+          n.addHijo((Nodo)d);
           RESULT = n;
       :}
-    | decl_global:dg
+    | decl_top:d
       {:
-          Nodo n = new Nodo("globales");
-          n.addHijo((Nodo)dg);
+          Nodo n = new Nodo("declaraciones");
+          n.addHijo((Nodo)d);
           RESULT = n;
       :}
-    | globales error ENDL
+    | declaraciones_top error ENDL
       {:
           addError("[PANIC] Error en declaración global, sincronizado en ENDL.");
-          Nodo n = new Nodo("globales_error");
+          Nodo n = new Nodo("declaraciones_error");
+          RESULT = n;
+      :}
+    | declaraciones_top error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
+          Nodo n = new Nodo("declaraciones_error");
           RESULT = n;
       :}
     | error ENDL
       {:
           addError("[PANIC] Error en declaración global, sincronizado en ENDL.");
-          Nodo n = new Nodo("globales_error");
+          Nodo n = new Nodo("declaraciones_error");
+          RESULT = n;
+      :}
+    | error BLOCK_CLOSE
+      {:
+          addError("[PANIC] Error en declaración de función, sincronizado en '!'.");
+          Nodo n = new Nodo("declaraciones_error");
           RESULT = n;
       :}
     ;
+
+/* Una declaración de nivel superior puede ser global o función */
+decl_top ::=
+      decl_global:dg {: RESULT = dg; :}
+    | funcion:f {: RESULT = f; :}
+    ;
+    
+/*
+----------GLOBALES----------*/
+/* Las reglas funciones y globales ya no se usan por separado.
+   Ahora se manejan a través de declaraciones_top y decl_top */
 
 decl_global ::=
       WORLD tipo:t ID:id ENDL
@@ -745,7 +720,7 @@ sentencia ::=
           n.addHijo((Nodo)e);
           RESULT=n;
       :}
-    | asignacion_elemento:a {: RESULT = a; :}
+    | asignacion_elemento:a {: RESULT = a; :} // asignacion
     | io:i {: RESULT = i; :}
     | BREAK ENDL
       {:
@@ -817,21 +792,19 @@ for_init ::=
       :}
     ;
 
-// FOR
+// FOR - con scope propio para variables declaradas en el for
 for ::=
-      FOR PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b ENDL
+      FOR
+      {: pushAutoScope("for"); :}
+      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b ENDL
       {:
           Nodo n=new Nodo("for");
           n.addHijo((Nodo)fi);
           n.addHijo((Nodo)cond);
           n.addHijo((Nodo)u);
           n.addHijo((Nodo)b);
+          popScope(); // Salir del scope del for
           RESULT=n;
-      :}
-    | FOR PARENTHESIS_OPEN for_init ENDL expr_logica ENDL unario PARENTHESIS_CLOSE bloque error
-      {:
-          addError("[PANIC] Estructura FOR: falta ENDL después del bloque.");
-          RESULT=new Nodo("for_error");
       :}
     | FOR error ENDL
       {:
@@ -840,13 +813,16 @@ for ::=
       :}
     ;
 
-// LOOP
+// LOOP - con scope propio
 loop ::=
-      LOOP sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
+      LOOP
+      {: pushAutoScope("loop"); :}
+      sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
       {:
           Nodo n=new Nodo("loop");
           n.addHijo((Nodo)s);
           n.addHijo((Nodo)cond);
+          popScope(); // Salir del scope del loop
           RESULT=n;
       :}
     | LOOP error END LOOP ENDL
@@ -872,11 +848,14 @@ casos ::=
     ;
 
 caso ::=
-      expr_logica:cond ARROW bloque:b
+      expr_logica:cond ARROW
+      {: pushAutoScope("caso"); :}
+      bloque:b
       {:
           Nodo n=new Nodo("caso");
           n.addHijo((Nodo)cond);
           n.addHijo((Nodo)b);
+          popScope(); // Salir del scope del caso
           RESULT=n;
       :}
     | error ARROW bloque:b
@@ -888,7 +867,7 @@ caso ::=
       :}
     ;
 
-// DECIDE OF
+// DECIDE OF - cada caso tiene su propio scope
 decide_of ::=
       DECIDE OF casos:cs END DECIDE ENDL
       {:
@@ -896,11 +875,14 @@ decide_of ::=
           n.addHijo((Nodo)cs);
           RESULT=n;
       :}
-    | DECIDE OF casos:cs ELSE ARROW bloque:b END DECIDE ENDL
+    | DECIDE OF casos:cs ELSE ARROW
+      {: pushAutoScope("else"); :}
+      bloque:b END DECIDE ENDL
       {:
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           n.addHijo((Nodo)b);
+          popScope(); // Salir del scope del else
           RESULT=n;
       :}
     | DECIDE OF error END DECIDE ENDL
@@ -989,7 +971,7 @@ asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
 
 acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresion:e2 ARRAY_CLOSE
     {: Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
-    ;
+    ; 
 
 elementos ::= lit_array:l
     {: Nodo n = new Nodo("elementos"); n.addHijo((Nodo)l); RESULT = n; :}
@@ -1075,7 +1057,7 @@ factor ::= literal:l
         {: RESULT = a; :}
     | llamada:ll
         {: RESULT = ll; :}
-    | MINUS factor:f
+    | MINUS factor:f // Puede producir ------d (está mal)
         {: Nodo n = new Nodo("neg"); n.addHijo((Nodo)f); RESULT = n; :}
     | unario:u
         {: RESULT = u; :}
