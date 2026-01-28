@@ -8,8 +8,6 @@ import java.util.*;
 // Conectar CUP con el lexer generado por JFlex
 scan with {: return ((Lexer)getScanner()).next_token(); :};
 
-// Esperamos 1 conflicto shift/reduce en expresiones con paréntesis (CUP resuelve a favor de shift)
-
 /* ---------- TABLA DE SIMBOLOS ---------- */
 
 parser code {:
@@ -307,7 +305,6 @@ non terminal casos, caso;
 non terminal dim, decl_arreglo, creacion_arreglo;
 non terminal asignacion_elemento, acceso_arreglo;
 non terminal elementos, fila, filas, arreglo_init;
-non terminal lit_array;
 non terminal llamada, args;
 non terminal expresion;
 non terminal expr_aritm, term, power, factor;
@@ -796,12 +793,12 @@ for_init ::=
 for ::=
       FOR
       {: pushAutoScope("for"); :}
-      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL unario:u PARENTHESIS_CLOSE bloque:b ENDL
+      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL expresion:e PARENTHESIS_CLOSE bloque:b ENDL
       {:
           Nodo n=new Nodo("for");
           n.addHijo((Nodo)fi);
           n.addHijo((Nodo)cond);
-          n.addHijo((Nodo)u);
+          n.addHijo((Nodo)e);
           n.addHijo((Nodo)b);
           popScope(); // Salir del scope del for
           RESULT=n;
@@ -963,9 +960,7 @@ creacion_arreglo ::=
       :}
     ;
 
-asignacion_elemento ::= acceso_arreglo:a ASSIGN lit_array:l ENDL
-    {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)l); RESULT = n; :}
-    | acceso_arreglo:a ASSIGN expresion:e ENDL
+asignacion_elemento ::= acceso_arreglo:a ASSIGN expresion:e ENDL
     {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)e); RESULT = n; :}
     ;
 
@@ -973,10 +968,14 @@ acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresio
     {: Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
     ; 
 
-elementos ::= lit_array:l
-    {: Nodo n = new Nodo("elementos"); n.addHijo((Nodo)l); RESULT = n; :}
-    | elementos:els COMMA lit_array:l
-    {: Nodo n = (Nodo)els; n.addHijo(new Nodo(",")); n.addHijo((Nodo)l); RESULT = n; :}
+elementos ::= INT_LIT:i
+    {: Nodo n = new Nodo("elementos"); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); RESULT = n; :}
+    | CHAR_LIT:c
+    {: Nodo n = new Nodo("elementos"); Nodo lit = new Nodo(c); lit.setTipo("char"); n.addHijo(lit); RESULT = n; :}
+    | elementos:els COMMA INT_LIT:i
+    {: Nodo n = (Nodo)els; n.addHijo(new Nodo(",")); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); RESULT = n; :}
+    | elementos:els COMMA CHAR_LIT:c
+    {: Nodo n = (Nodo)els; n.addHijo(new Nodo(",")); Nodo lit = new Nodo(c); lit.setTipo("char"); n.addHijo(lit); RESULT = n; :}
     ;
 
 fila ::= BLOCK_OPEN elementos:els BLOCK_CLOSE
@@ -994,9 +993,6 @@ arreglo_init ::= BLOCK_OPEN filas:f BLOCK_CLOSE
     ;
 
 
-lit_array ::= INT_LIT:i {: Nodo n = new Nodo(i); n.setTipo("int"); RESULT = n; :}
-           | CHAR_LIT:c {: Nodo n = new Nodo(c); n.setTipo("char"); RESULT = n; :}
-           ;
 
 /*
 ----------LLAMADAS A FUNCIONES----------
@@ -1057,8 +1053,10 @@ factor ::= literal:l
         {: RESULT = a; :}
     | llamada:ll
         {: RESULT = ll; :}
-    | MINUS factor:f // Puede producir ------d (está mal)
-        {: Nodo n = new Nodo("neg"); n.addHijo((Nodo)f); RESULT = n; :}
+    | MINUS INT_LIT:i
+        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); RESULT = n; :}
+    | MINUS FLOAT_LIT:f
+        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(f); lit.setTipo("float"); n.addHijo(lit); RESULT = n; :}
     | unario:u
         {: RESULT = u; :}
     | PARENTHESIS_OPEN expresion:e PARENTHESIS_CLOSE
