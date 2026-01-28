@@ -12,6 +12,9 @@ public class Nodo {
     //tipo de dato del nodo
     String tipo;
 
+    // Dirección donde está almacenado el valor (temporal, variable, literal)
+    String dir;
+
     //lista de hijos de este nodo en el arbol sintactico
     ArrayList<Nodo> hijos;
 
@@ -37,6 +40,16 @@ public class Nodo {
     // Obtiene el tipo de dato del nodo
     public String getTipo() {
         return this.tipo;
+    }
+
+    // Asigna la dirección donde está almacenado el valor
+    public void setDir(String dir) {
+        this.dir = dir;
+    }
+
+    // Obtiene la dirección donde está almacenado el valor
+    public String getDir() {
+        return this.dir != null ? this.dir : "";
     }
 
     // pone un hijo a la lista de hijos del padre
