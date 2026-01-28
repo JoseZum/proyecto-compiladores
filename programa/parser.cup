@@ -229,6 +229,104 @@ parser code {:
         }
     }
 
+    /* ---------- ANÁLISIS SEMÁNTICO DE TIPOS ---------- */
+
+    // Tipo especial para errores (evita efecto cascada)
+    static final String ERROR_TYPE = "error";
+
+    // Verifica compatibilidad de tipos para operaciones aritméticas
+    String checkArithmetic(String t1, String t2, String op, int line, int col) {
+        if (ERROR_TYPE.equals(t1) || ERROR_TYPE.equals(t2)) return ERROR_TYPE;
+        if (t1 == null || t2 == null || t1.isEmpty() || t2.isEmpty()) return ERROR_TYPE;
+
+        // int con int -> int
+        if ("int".equals(t1) && "int".equals(t2)) return "int";
+        // float con float -> float
+        if ("float".equals(t1) && "float".equals(t2)) return "float";
+        // int con float o float con int -> float (promoción)
+        if (("int".equals(t1) && "float".equals(t2)) ||
+            ("float".equals(t1) && "int".equals(t2))) return "float";
+
+        addError("[SEM] Tipos incompatibles para '" + op + "': " + t1 + " y " + t2 + " (" + line + "," + col + ")");
+        return ERROR_TYPE;
+    }
+
+    // Verifica que los operandos de comparación sean compatibles
+    String checkRelational(String t1, String t2, String op, int line, int col) {
+        if (ERROR_TYPE.equals(t1) || ERROR_TYPE.equals(t2)) return "boolean";
+        if (t1 == null || t2 == null || t1.isEmpty() || t2.isEmpty()) return "boolean";
+
+        boolean t1Num = "int".equals(t1) || "float".equals(t1);
+        boolean t2Num = "int".equals(t2) || "float".equals(t2);
+
+        if (t1Num && t2Num) return "boolean";
+
+        // Igualdad permite cualquier tipo compatible
+        if ("==".equals(op) || "!=".equals(op)) {
+            if (t1.equals(t2)) return "boolean";
+        }
+
+        addError("[SEM] Tipos incompatibles para '" + op + "': " + t1 + " y " + t2 + " (" + line + "," + col + ")");
+        return "boolean";
+    }
+
+    // Verifica que el tipo sea booleano (para AND, OR, NOT)
+    String checkBoolean(String t, String op, int line, int col) {
+        if (ERROR_TYPE.equals(t)) return ERROR_TYPE;
+        if (t == null || t.isEmpty()) return ERROR_TYPE;
+        if ("boolean".equals(t)) return "boolean";
+        addError("[SEM] Se esperaba boolean para '" + op + "', encontrado: " + t + " (" + line + "," + col + ")");
+        return ERROR_TYPE;
+    }
+
+    // Verifica asignación: que el tipo de la expresión sea compatible con el tipo de la variable
+    void checkAssignment(String varType, String exprType, String id, int line, int col) {
+        if (ERROR_TYPE.equals(exprType)) return; // Ya hubo error
+        if (varType == null || exprType == null || varType.isEmpty() || exprType.isEmpty()) return;
+
+        if (varType.equals(exprType)) return; // Tipos iguales OK
+
+        // Permitir int -> float (promoción)
+        if ("float".equals(varType) && "int".equals(exprType)) return;
+
+        addError("[SEM] Tipo incompatible en asignación a '" + id + "': esperaba " + varType + ", encontrado " + exprType + " (" + line + "," + col + ")");
+    }
+
+    // Verifica que el índice de arreglo sea int
+    void checkArrayIndex(String indexType, int line, int col) {
+        if (ERROR_TYPE.equals(indexType)) return;
+        if (indexType == null || indexType.isEmpty()) return;
+        if (!"int".equals(indexType)) {
+            addError("[SEM] Índice de arreglo debe ser int, encontrado: " + indexType + " (" + line + "," + col + ")");
+        }
+    }
+
+    // Obtiene el tipo de un ID desde la tabla de símbolos
+    String getIdType(String id, int line, int col) {
+        SymInfo info = lookup(id);
+        if (info == null) {
+            return ERROR_TYPE;
+        }
+        return info.type;
+    }
+
+    // Obtiene el tipo de retorno de una función
+    String getFuncReturnType(String id) {
+        HashMap<String, SymInfo> w = tablas.get("world");
+        SymInfo info = w.get(id);
+        if (info == null) return ERROR_TYPE;
+        return info.type;
+    }
+
+    // Verifica tipos para incremento/decremento
+    String checkUnary(String t, String op, int line, int col) {
+        if (ERROR_TYPE.equals(t)) return ERROR_TYPE;
+        if (t == null || t.isEmpty()) return ERROR_TYPE;
+        if ("int".equals(t) || "float".equals(t)) return t;
+        addError("[SEM] '" + op + "' requiere tipo numérico, encontrado: " + t + " (" + line + "," + col + ")");
+        return ERROR_TYPE;
+    }
+
     void printTablas() {
         System.out.println("\n---------- TABLAS DE SIMBOLOS----------");
         System.out.println("Scope: world");
@@ -412,13 +510,17 @@ decl_global ::=
     | WORLD tipo:t ID:id ASSIGN expresion:e ENDL
       {:
           String idStr = id.toString();
-          declareVar("world", ((Nodo)t).getTipo(), idStr, idleft, idright, false);
-          
+          String tipoVar = ((Nodo)t).getTipo();
+          declareVar("world", tipoVar, idStr, idleft, idright, false);
+
+          // Verificar compatibilidad de tipos
+          checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
+
           Nodo n = new Nodo("decl_global_asign");
           n.addHijo(new Nodo("world"));
           n.addHijo((Nodo)t);
           Nodo nid = new Nodo(idStr);
-          nid.setTipo(((Nodo)t).getTipo());
+          nid.setTipo(tipoVar);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
@@ -603,16 +705,20 @@ creacion_sentencia ::=
     ;
 
 // asignacion
-asignacion ::= 
+asignacion ::=
       alcance:a tipo:t ID:id ASSIGN expresion:e
-      {: 
+      {:
           String alc=((Nodo)a).getTipo();
+          String tipoVar = ((Nodo)t).getTipo();
           String idStr = id.toString();
-          declareVar(alc, ((Nodo)t).getTipo(), idStr, idleft, idright, false);
+          declareVar(alc, tipoVar, idStr, idleft, idright, false);
+
+          // Verificar compatibilidad de tipos
+          checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
 
           Nodo n=new Nodo("asignacion_decl");
           n.addHijo((Nodo)a);
-          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(tipoVar);
           n.addHijo((Nodo)t);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
@@ -622,13 +728,19 @@ asignacion ::=
     ;
 
 // reasignacion
-reasignacion ::= 
+reasignacion ::=
       ID:id ASSIGN expresion:e
-      {: 
+      {:
           String idStr = id.toString();
-          checkID(idStr, idleft, idright); // Verificar si existe
+          checkID(idStr, idleft, idright);
+          String varType = getIdType(idStr, idleft, idright);
+
+          // Verificar compatibilidad de tipos
+          checkAssignment(varType, ((Nodo)e).getTipo(), idStr, idleft, idright);
+
           Nodo n=new Nodo("reasignacion");
           Nodo nid=new Nodo(idStr);
+          nid.setTipo(varType);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
@@ -658,21 +770,49 @@ asignacion_sentencia ::=
 
 // unario
 unario ::= INCREMENT ID:id
-                 {: 
+                 {:
                      String idStr = id.toString();
                      checkID(idStr, idleft, idright);
-                     Nodo n = new Nodo("++pre"); Nodo idn = new Nodo(idStr); n.addHijo(idn); RESULT = n; 
+                     String t = getIdType(idStr, idleft, idright);
+                     checkUnary(t, "++", idleft, idright);
+                     Nodo n = new Nodo("++pre");
+                     Nodo idn = new Nodo(idStr);
+                     idn.setTipo(t);
+                     n.addHijo(idn);
+                     n.setTipo(t);
+                     RESULT = n;
                  :}
              | DECREMENT ID:id
-                 {: 
+                 {:
                      String idStr = id.toString();
                      checkID(idStr, idleft, idright);
-                     Nodo n = new Nodo("--pre"); Nodo idn = new Nodo(idStr); n.addHijo(idn); RESULT = n; 
+                     String t = getIdType(idStr, idleft, idright);
+                     checkUnary(t, "--", idleft, idright);
+                     Nodo n = new Nodo("--pre");
+                     Nodo idn = new Nodo(idStr);
+                     idn.setTipo(t);
+                     n.addHijo(idn);
+                     n.setTipo(t);
+                     RESULT = n;
                  :}
              | INCREMENT acceso_arreglo:a
-                 {: Nodo n = new Nodo("++pre"); n.addHijo((Nodo)a); RESULT = n; :}
+                 {:
+                     String t = ((Nodo)a).getTipo();
+                     checkUnary(t, "++", aleft, aright);
+                     Nodo n = new Nodo("++pre");
+                     n.addHijo((Nodo)a);
+                     n.setTipo(t);
+                     RESULT = n;
+                 :}
              | DECREMENT acceso_arreglo:a
-                 {: Nodo n = new Nodo("--pre"); n.addHijo((Nodo)a); RESULT = n; :}
+                 {:
+                     String t = ((Nodo)a).getTipo();
+                     checkUnary(t, "--", aleft, aright);
+                     Nodo n = new Nodo("--pre");
+                     n.addHijo((Nodo)a);
+                     n.setTipo(t);
+                     RESULT = n;
+                 :}
              ;
 
 /*
@@ -777,11 +917,15 @@ for_init ::=
     | tipo:t ID:id ASSIGN expresion:e
       {:
           String idStr = id.toString();
-          declareVar("local", ((Nodo)t).getTipo(), idStr, idleft, idright, false);
-          
+          String tipoVar = ((Nodo)t).getTipo();
+          declareVar("local", tipoVar, idStr, idleft, idright, false);
+
+          // Verificar compatibilidad de tipos
+          checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
+
           Nodo n=new Nodo("asignacion_for");
           n.addHijo((Nodo)t);
-          Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
+          Nodo nid=new Nodo(idStr); nid.setTipo(tipoVar);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
@@ -961,14 +1105,46 @@ creacion_arreglo ::=
     ;
 
 asignacion_elemento ::= acceso_arreglo:a ASSIGN expresion:e ENDL
-    {: Nodo n = new Nodo("asignacion_elemento"); n.addHijo((Nodo)a); n.addHijo((Nodo)e); RESULT = n; :}
+    {:
+        String arrType = ((Nodo)a).getTipo();
+        String exprType = ((Nodo)e).getTipo();
+
+        // Verificar compatibilidad de tipos
+        if (!ERROR_TYPE.equals(arrType) && !ERROR_TYPE.equals(exprType)) {
+            if (!arrType.equals(exprType)) {
+                // Permitir promoción int -> float
+                if (!("float".equals(arrType) && "int".equals(exprType))) {
+                    addError("[SEM] Tipo incompatible en asignación a elemento de arreglo: esperaba " + arrType + ", encontrado " + exprType + " (" + aleft + "," + aright + ")");
+                }
+            }
+        }
+
+        Nodo n = new Nodo("asignacion_elemento");
+        n.addHijo((Nodo)a);
+        n.addHijo((Nodo)e);
+        RESULT = n;
+    :}
     ;
 
 acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresion:e2 ARRAY_CLOSE
-    {: 
+    {:
         String idStr = id.toString();
         checkArray(idStr, idleft, idright);
-        Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(idStr); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; 
+
+        // Verificar que los índices sean int
+        checkArrayIndex(((Nodo)e1).getTipo(), e1left, e1right);
+        checkArrayIndex(((Nodo)e2).getTipo(), e2left, e2right);
+
+        // Obtener tipo del arreglo
+        String arrType = getIdType(idStr, idleft, idright);
+
+        Nodo n = new Nodo("acceso_arreglo");
+        Nodo nid = new Nodo(idStr);
+        n.addHijo(nid);
+        n.addHijo((Nodo)e1);
+        n.addHijo((Nodo)e2);
+        n.setTipo(arrType);
+        RESULT = n;
     :}
     ; 
 
@@ -1003,18 +1179,31 @@ arreglo_init ::= BLOCK_OPEN filas:f BLOCK_CLOSE
 */
 
 llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
-        {: 
+        {:
             String idStr = id.toString();
             checkCall(idStr, idleft, idright);
-            Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(idStr); n.addHijo(nid); n.addHijo((Nodo)a); RESULT = n; 
+            String retType = getFuncReturnType(idStr);
+
+            Nodo n = new Nodo("llamada");
+            Nodo nid = new Nodo(idStr);
+            n.addHijo(nid);
+            n.addHijo((Nodo)a);
+            n.setTipo(retType);
+            RESULT = n;
         :}
     | ID:id PARENTHESIS_OPEN PARENTHESIS_CLOSE
-        {: 
+        {:
             String idStr = id.toString();
             checkCall(idStr, idleft, idright);
-            Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(idStr); n.addHijo(nid); RESULT = n; 
+            String retType = getFuncReturnType(idStr);
+
+            Nodo n = new Nodo("llamada");
+            Nodo nid = new Nodo(idStr);
+            n.addHijo(nid);
+            n.setTipo(retType);
+            RESULT = n;
         :}
-          ;
+    ;
 
 args ::= args:as COMMA expresion:e
         {: Nodo n = (Nodo)as; n.addHijo(new Nodo(",")); n.addHijo((Nodo)e); RESULT = n; :}
@@ -1032,27 +1221,78 @@ expresion ::= expr_logica:e {: RESULT = e; :}
 // ARITMÉTICAS
 
 expr_aritm ::= expr_aritm:e1 PLUS term:e2
-        {: Nodo n = new Nodo("+"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "+", e1left, e1right);
+            Nodo n = new Nodo("+");
+            n.addHijo((Nodo)e1);
+            n.addHijo((Nodo)e2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | expr_aritm:e1 MINUS term:e2
-        {: Nodo n = new Nodo("-"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "-", e1left, e1right);
+            Nodo n = new Nodo("-");
+            n.addHijo((Nodo)e1);
+            n.addHijo((Nodo)e2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | term:t
         {: RESULT = t; :}
     ;
 
 term ::= term:t1 TIMES power:t2
-        {: Nodo n = new Nodo("*"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "*", t1left, t1right);
+            Nodo n = new Nodo("*");
+            n.addHijo((Nodo)t1);
+            n.addHijo((Nodo)t2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | term:t1 DIV power:t2
-        {: Nodo n = new Nodo("/"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "/", t1left, t1right);
+            Nodo n = new Nodo("/");
+            n.addHijo((Nodo)t1);
+            n.addHijo((Nodo)t2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | term:t1 DIV_INT power:t2
-        {: Nodo n = new Nodo("//"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "//", t1left, t1right);
+            // División entera siempre retorna int si ambos son numéricos
+            if (!ERROR_TYPE.equals(t)) t = "int";
+            Nodo n = new Nodo("//");
+            n.addHijo((Nodo)t1);
+            n.addHijo((Nodo)t2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | term:t1 MODULE power:t2
-        {: Nodo n = new Nodo("%"); n.addHijo((Nodo)t1); n.addHijo((Nodo)t2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "%", t1left, t1right);
+            Nodo n = new Nodo("%");
+            n.addHijo((Nodo)t1);
+            n.addHijo((Nodo)t2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | power:p
         {: RESULT = p; :}
     ;
 
 power ::= factor:f1 POWER power:f2
-        {: Nodo n = new Nodo("^"); n.addHijo((Nodo)f1); n.addHijo((Nodo)f2); RESULT = n; :}
+        {:
+            String t = checkArithmetic(((Nodo)f1).getTipo(), ((Nodo)f2).getTipo(), "^", f1left, f1right);
+            Nodo n = new Nodo("^");
+            n.addHijo((Nodo)f1);
+            n.addHijo((Nodo)f2);
+            n.setTipo(t);
+            RESULT = n;
+        :}
     | factor:f
         {: RESULT = f; :}
     ;
@@ -1060,20 +1300,22 @@ power ::= factor:f1 POWER power:f2
 factor ::= literal:l
         {: RESULT = l; :}
     | ID:id
-        {: 
+        {:
             String idStr = id.toString();
             checkID(idStr, idleft, idright);
-            Nodo n = new Nodo(idStr); 
-            RESULT = n; 
+            String t = getIdType(idStr, idleft, idright);
+            Nodo n = new Nodo(idStr);
+            n.setTipo(t);
+            RESULT = n;
         :}
     | acceso_arreglo:a
         {: RESULT = a; :}
     | llamada:ll
         {: RESULT = ll; :}
     | MINUS INT_LIT:i
-        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); RESULT = n; :}
+        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); n.setTipo("int"); RESULT = n; :}
     | MINUS FLOAT_LIT:f
-        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(f); lit.setTipo("float"); n.addHijo(lit); RESULT = n; :}
+        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(f); lit.setTipo("float"); n.addHijo(lit); n.setTipo("float"); RESULT = n; :}
     | unario:u
         {: RESULT = u; :}
     | PARENTHESIS_OPEN expresion:e PARENTHESIS_CLOSE
@@ -1083,7 +1325,14 @@ factor ::= literal:l
 // RELACIONALES
 
 expr_relacional ::= expresion_rel:e1 operador_rel:op expresion_rel:e2
-    {: Nodo n = new Nodo(op); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    {:
+        String t = checkRelational(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), (String)op, e1left, e1right);
+        Nodo n = new Nodo(op);
+        n.addHijo((Nodo)e1);
+        n.addHijo((Nodo)e2);
+        n.setTipo(t);
+        RESULT = n;
+    :}
     ;
 
 expresion_rel ::= expr_aritm:e {: RESULT = e; :}
@@ -1100,19 +1349,41 @@ operador_rel ::= LESS_THAN      {: RESULT = "<"; :}
 // LOGICAS:
 
 expr_logica ::= expr_logica:e1 OR expr_and:e2
-        {: Nodo n = new Nodo("or"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+        {:
+            checkBoolean(((Nodo)e1).getTipo(), "or", e1left, e1right);
+            checkBoolean(((Nodo)e2).getTipo(), "or", e2left, e2right);
+            Nodo n = new Nodo("or");
+            n.addHijo((Nodo)e1);
+            n.addHijo((Nodo)e2);
+            n.setTipo("boolean");
+            RESULT = n;
+        :}
     | expr_and:e
         {: RESULT = e; :}
     ;
 
 expr_and ::= expr_and:e1 AND expr_not:e2
-        {: Nodo n = new Nodo("and"); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+        {:
+            checkBoolean(((Nodo)e1).getTipo(), "and", e1left, e1right);
+            checkBoolean(((Nodo)e2).getTipo(), "and", e2left, e2right);
+            Nodo n = new Nodo("and");
+            n.addHijo((Nodo)e1);
+            n.addHijo((Nodo)e2);
+            n.setTipo("boolean");
+            RESULT = n;
+        :}
     | expr_not:e
         {: RESULT = e; :}
     ;
 
 expr_not ::= NOT expr_not:e
-        {: Nodo n = new Nodo("not"); n.addHijo((Nodo)e); RESULT = n; :}
+        {:
+            checkBoolean(((Nodo)e).getTipo(), "not", eleft, eright);
+            Nodo n = new Nodo("not");
+            n.addHijo((Nodo)e);
+            n.setTipo("boolean");
+            RESULT = n;
+        :}
     | expr_bool:e
         {: RESULT = e; :}
     ;

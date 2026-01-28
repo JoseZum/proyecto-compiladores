@@ -1,0 +1,42 @@
+** Pruebas de errores semánticos de tipos **
+** Este archivo contiene errores intencionalmente para probar el análisis semántico **
+
+coal navidad() ¡
+
+    ** Error: Asignar string a int **
+    local int x = "hola"~
+
+    ** Error: Operación aritmética con tipos incompatibles **
+    local int y = 5 + "texto"~
+
+    ** Error: Operación aritmética boolean + int **
+    local int z = 3 + true~
+
+    ** Correcto: int + int **
+    local int suma = 5 + 3~
+
+    ** Correcto: float + int -> float (promoción) **
+    local float f = 3.14 + 2~
+
+    ** Correcto: Asignar int a float (promoción) **
+    local float g = 10~
+
+    ** Error: Asignar float a int (no permitido) **
+    local int h = 3.14~
+
+    ** Error: Operador lógico con no-boolean **
+    local boolean b = 5 && 3~
+
+    ** Correcto: Operador lógico con boolean **
+    local boolean c = true && false~
+
+    ** Error: NOT sobre int **
+    local boolean d = !5~
+
+    ** Correcto: Comparación numérica **
+    local boolean cmp = 5 > 3~
+
+    ** Error: Reasignar con tipo incorrecto **
+    x = "otro texto"~
+
+!

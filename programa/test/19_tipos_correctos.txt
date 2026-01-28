@@ -1,0 +1,69 @@
+** Pruebas de código con tipos correctos (no debe generar errores semánticos) **
+
+world int global_int = 100~
+world float global_float = 3.14~
+world boolean global_bool = true~
+
+gift int suma(int a, int b) ¡
+    return a + b~
+!
+
+gift float promedio(float x, float y) ¡
+    return (x + y) / 2.0~
+!
+
+coal navidad() ¡
+
+    ** Declaraciones correctas **
+    local int x = 5~
+    local float f = 2.5~
+    local boolean b = true~
+    local char c = 'a'~
+    local string s = "hola"~
+
+    ** Operaciones aritméticas correctas **
+    local int res1 = x + 10~
+    local int res2 = x * 2~
+    local int res3 = x - 3~
+    local int res4 = x / 2~
+    local int res5 = x % 3~
+    local int res6 = x ^ 2~
+
+    ** Promoción int a float **
+    local float f2 = x + 1.5~
+    local float f3 = 10~
+
+    ** División entera **
+    local int divInt = 10 // 3~
+
+    ** Operaciones lógicas **
+    local boolean b2 = b && true~
+    local boolean b3 = b || false~
+    local boolean b4 = !b~
+
+    ** Comparaciones **
+    local boolean cmp1 = x > 3~
+    local boolean cmp2 = x <= 10~
+    local boolean cmp3 = x == 5~
+    local boolean cmp4 = x != 0~
+
+    ** Llamada a función con tipo correcto **
+    local int resultado = suma(3, 4)~
+    local float prom = promedio(1.0, 2.0)~
+
+    ** Reasignación con tipo correcto **
+    x = 20~
+    f = 4.5~
+    b = false~
+
+    ** Arreglos con índices int **
+    local int arr[2][2]~
+    arr[0][0] = 1~
+    arr[1][1] = x~
+
+    ** Incremento/decremento sobre numéricos **
+    ++x~
+    --x~
+
+    show(resultado)~
+!
