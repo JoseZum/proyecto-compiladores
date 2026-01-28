@@ -937,11 +937,17 @@ sentencia ::=
     | io:i {: RESULT = i; :}
     | BREAK ENDL
       {:
+          // Generar C3D para break - saltar al final del loop más cercano
+          if (!loopEndLabels.isEmpty()) {
+              emit("goto " + loopEndLabels.peek());
+          }
           Nodo n=new Nodo("break");
           RESULT=n;
       :}
     | RETURN expresion:e ENDL
       {:
+          // Generar C3D para return
+          emit("return " + ((Nodo)e).getDir());
           Nodo n=new Nodo("return");
           n.addHijo((Nodo)e);
           RESULT=n;
@@ -999,12 +1005,16 @@ for_init ::=
           // Verificar compatibilidad de tipos
           checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
 
+          // Generar C3D para la asignación en for
+          emit(idStr + " = " + ((Nodo)e).getDir());
+
           Nodo n=new Nodo("asignacion_for");
           n.addHijo((Nodo)t);
           Nodo nid=new Nodo(idStr); nid.setTipo(tipoVar);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
+          n.setDir(idStr);
           RESULT=n;
       :}
     ;
@@ -1012,9 +1022,32 @@ for_init ::=
 // FOR - con scope propio para variables declaradas en el for
 for ::=
       FOR
-      {: pushAutoScope("for"); :}
+      {:
+          pushAutoScope("for");
+          // Generar etiquetas para el for y guardarlas
+          String lblCond = newLabel();
+          String lblEnd = newLabel();
+          loopStartLabels.push(lblCond);
+          loopEndLabels.push(lblEnd);
+          emit("# FOR inicio");
+      :}
       PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL expresion:e PARENTHESIS_CLOSE bloque:b ENDL
       {:
+          // Recuperar etiquetas del for
+          String lblCond = loopStartLabels.pop();
+          String lblEnd = loopEndLabels.pop();
+
+          // Nota: La inicialización ya se emitió en for_init
+          // Emitir etiqueta de condición (el código de condición ya se emitió)
+          emit(lblCond + ":");
+          // Evaluar condición y saltar si es falsa
+          emit("ifFalse " + ((Nodo)cond).getDir() + " goto " + lblEnd);
+          // El bloque ya se ejecutó (las instrucciones ya están)
+          // Incremento ya se evaluó en expresion:e
+          emit("goto " + lblCond);
+          emit(lblEnd + ":");
+          emit("# FOR fin");
+
           Nodo n=new Nodo("for");
           n.addHijo((Nodo)fi);
           n.addHijo((Nodo)cond);
@@ -1033,9 +1066,28 @@ for ::=
 // LOOP - con scope propio
 loop ::=
       LOOP
-      {: pushAutoScope("loop"); :}
+      {:
+          pushAutoScope("loop");
+          // Emitir etiqueta de inicio del loop y guardarla en la pila
+          String lblStart = newLabel();
+          String lblEnd = newLabel();
+          loopStartLabels.push(lblStart);
+          loopEndLabels.push(lblEnd);
+          emit("# LOOP inicio");
+          emit(lblStart + ":");
+      :}
       sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
       {:
+          // Recuperar etiquetas del loop
+          String lblStart = loopStartLabels.pop();
+          String lblEnd = loopEndLabels.pop();
+          // Si la condición es verdadera, salir del loop
+          emit("if " + ((Nodo)cond).getDir() + " goto " + lblEnd);
+          // Si no, volver al inicio
+          emit("goto " + lblStart);
+          emit(lblEnd + ":");
+          emit("# LOOP fin");
+
           Nodo n=new Nodo("loop");
           n.addHijo((Nodo)s);
           n.addHijo((Nodo)cond);
@@ -1066,9 +1118,17 @@ casos ::=
 
 caso ::=
       expr_logica:cond ARROW
-      {: pushAutoScope("caso"); :}
+      {:
+          pushAutoScope("caso");
+          // Generar etiqueta para saltar al siguiente caso si la condición es falsa
+          String lblNext = newLabel();
+          emit("ifFalse " + ((Nodo)cond).getDir() + " goto " + lblNext);
+          loopEndLabels.push(lblNext);
+      :}
       bloque:b
       {:
+          String lblNext = loopEndLabels.pop();
+          emit(lblNext + ":");
           Nodo n=new Nodo("caso");
           n.addHijo((Nodo)cond);
           n.addHijo((Nodo)b);
@@ -1088,14 +1148,19 @@ caso ::=
 decide_of ::=
       DECIDE OF casos:cs END DECIDE ENDL
       {:
+          emit("# DECIDE fin");
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           RESULT=n;
       :}
     | DECIDE OF casos:cs ELSE ARROW
-      {: pushAutoScope("else"); :}
+      {:
+          pushAutoScope("else");
+          emit("# ELSE");
+      :}
       bloque:b END DECIDE ENDL
       {:
+          emit("# DECIDE fin");
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           n.addHijo((Nodo)b);
@@ -1195,6 +1260,14 @@ asignacion_elemento ::= acceso_arreglo:a ASSIGN expresion:e ENDL
             }
         }
 
+        // Generar C3D para asignación a elemento de arreglo
+        // Obtener info del acceso: el nodo tiene id, e1, e2 como hijos
+        Nodo accesoNodo = (Nodo)a;
+        String arrId = accesoNodo.hijos.get(0).lexema;
+        String idx1 = accesoNodo.hijos.get(1).getDir();
+        String idx2 = accesoNodo.hijos.get(2).getDir();
+        emit(arrId + "[" + idx1 + "][" + idx2 + "] = " + ((Nodo)e).getDir());
+
         Nodo n = new Nodo("asignacion_elemento");
         n.addHijo((Nodo)a);
         n.addHijo((Nodo)e);
@@ -1214,12 +1287,17 @@ acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresio
         // Obtener tipo del arreglo
         String arrType = getIdType(idStr, idleft, idright);
 
+        // Generar C3D para acceso a arreglo
+        String temp = newTemp();
+        emit(temp + " = " + idStr + "[" + ((Nodo)e1).getDir() + "][" + ((Nodo)e2).getDir() + "]");
+
         Nodo n = new Nodo("acceso_arreglo");
         Nodo nid = new Nodo(idStr);
         n.addHijo(nid);
         n.addHijo((Nodo)e1);
         n.addHijo((Nodo)e2);
         n.setTipo(arrType);
+        n.setDir(temp);
         RESULT = n;
     :}
     ; 
@@ -1260,11 +1338,24 @@ llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
             checkCall(idStr, idleft, idright);
             String retType = getFuncReturnType(idStr);
 
+            // Generar C3D: emitir params y llamada
+            Nodo argsNode = (Nodo)a;
+            int paramCount = 0;
+            for (Nodo hijo : argsNode.hijos) {
+                if (!",".equals(hijo.lexema)) {
+                    emit("param " + hijo.getDir());
+                    paramCount++;
+                }
+            }
+            String temp = newTemp();
+            emit(temp + " = call " + idStr + ", " + paramCount);
+
             Nodo n = new Nodo("llamada");
             Nodo nid = new Nodo(idStr);
             n.addHijo(nid);
             n.addHijo((Nodo)a);
             n.setTipo(retType);
+            n.setDir(temp);
             RESULT = n;
         :}
     | ID:id PARENTHESIS_OPEN PARENTHESIS_CLOSE
@@ -1273,10 +1364,15 @@ llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
             checkCall(idStr, idleft, idright);
             String retType = getFuncReturnType(idStr);
 
+            // Generar C3D: llamada sin argumentos
+            String temp = newTemp();
+            emit(temp + " = call " + idStr + ", 0");
+
             Nodo n = new Nodo("llamada");
             Nodo nid = new Nodo(idStr);
             n.addHijo(nid);
             n.setTipo(retType);
+            n.setDir(temp);
             RESULT = n;
         :}
     ;
@@ -1299,19 +1395,25 @@ expresion ::= expr_logica:e {: RESULT = e; :}
 expr_aritm ::= expr_aritm:e1 PLUS term:e2
         {:
             String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "+", e1left, e1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)e1).getDir() + " + " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("+");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | expr_aritm:e1 MINUS term:e2
         {:
             String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "-", e1left, e1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)e1).getDir() + " - " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("-");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | term:t
@@ -1321,19 +1423,25 @@ expr_aritm ::= expr_aritm:e1 PLUS term:e2
 term ::= term:t1 TIMES power:t2
         {:
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "*", t1left, t1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)t1).getDir() + " * " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("*");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | term:t1 DIV power:t2
         {:
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "/", t1left, t1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)t1).getDir() + " / " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("/");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | term:t1 DIV_INT power:t2
@@ -1341,19 +1449,25 @@ term ::= term:t1 TIMES power:t2
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "//", t1left, t1right);
             // División entera siempre retorna int si ambos son numéricos
             if (!ERROR_TYPE.equals(t)) t = "int";
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)t1).getDir() + " // " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("//");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | term:t1 MODULE power:t2
         {:
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "%", t1left, t1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)t1).getDir() + " % " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("%");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | power:p
@@ -1363,10 +1477,13 @@ term ::= term:t1 TIMES power:t2
 power ::= factor:f1 POWER power:f2
         {:
             String t = checkArithmetic(((Nodo)f1).getTipo(), ((Nodo)f2).getTipo(), "^", f1left, f1right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)f1).getDir() + " ^ " + ((Nodo)f2).getDir());
             Nodo n = new Nodo("^");
             n.addHijo((Nodo)f1);
             n.addHijo((Nodo)f2);
             n.setTipo(t);
+            n.setDir(temp);
             RESULT = n;
         :}
     | factor:f
@@ -1382,6 +1499,7 @@ factor ::= literal:l
             String t = getIdType(idStr, idleft, idright);
             Nodo n = new Nodo(idStr);
             n.setTipo(t);
+            n.setDir(idStr);
             RESULT = n;
         :}
     | acceso_arreglo:a
@@ -1389,9 +1507,31 @@ factor ::= literal:l
     | llamada:ll
         {: RESULT = ll; :}
     | MINUS INT_LIT:i
-        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(i); lit.setTipo("int"); n.addHijo(lit); n.setTipo("int"); RESULT = n; :}
+        {:
+            String temp = newTemp();
+            emit(temp + " = -" + i.toString());
+            Nodo n = new Nodo("neg");
+            Nodo lit = new Nodo(i);
+            lit.setTipo("int");
+            lit.setDir(i.toString());
+            n.addHijo(lit);
+            n.setTipo("int");
+            n.setDir(temp);
+            RESULT = n;
+        :}
     | MINUS FLOAT_LIT:f
-        {: Nodo n = new Nodo("neg"); Nodo lit = new Nodo(f); lit.setTipo("float"); n.addHijo(lit); n.setTipo("float"); RESULT = n; :}
+        {:
+            String temp = newTemp();
+            emit(temp + " = -" + f.toString());
+            Nodo n = new Nodo("neg");
+            Nodo lit = new Nodo(f);
+            lit.setTipo("float");
+            lit.setDir(f.toString());
+            n.addHijo(lit);
+            n.setTipo("float");
+            n.setDir(temp);
+            RESULT = n;
+        :}
     | unario:u
         {: RESULT = u; :}
     | PARENTHESIS_OPEN expresion:e PARENTHESIS_CLOSE
@@ -1403,10 +1543,13 @@ factor ::= literal:l
 expr_relacional ::= expresion_rel:e1 operador_rel:op expresion_rel:e2
     {:
         String t = checkRelational(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), (String)op, e1left, e1right);
+        String temp = newTemp();
+        emit(temp + " = " + ((Nodo)e1).getDir() + " " + (String)op + " " + ((Nodo)e2).getDir());
         Nodo n = new Nodo(op);
         n.addHijo((Nodo)e1);
         n.addHijo((Nodo)e2);
         n.setTipo(t);
+        n.setDir(temp);
         RESULT = n;
     :}
     ;
@@ -1428,10 +1571,13 @@ expr_logica ::= expr_logica:e1 OR expr_and:e2
         {:
             checkBoolean(((Nodo)e1).getTipo(), "or", e1left, e1right);
             checkBoolean(((Nodo)e2).getTipo(), "or", e2left, e2right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)e1).getDir() + " or " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("or");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
             n.setTipo("boolean");
+            n.setDir(temp);
             RESULT = n;
         :}
     | expr_and:e
@@ -1442,10 +1588,13 @@ expr_and ::= expr_and:e1 AND expr_not:e2
         {:
             checkBoolean(((Nodo)e1).getTipo(), "and", e1left, e1right);
             checkBoolean(((Nodo)e2).getTipo(), "and", e2left, e2right);
+            String temp = newTemp();
+            emit(temp + " = " + ((Nodo)e1).getDir() + " and " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("and");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
             n.setTipo("boolean");
+            n.setDir(temp);
             RESULT = n;
         :}
     | expr_not:e
@@ -1455,9 +1604,12 @@ expr_and ::= expr_and:e1 AND expr_not:e2
 expr_not ::= NOT expr_not:e
         {:
             checkBoolean(((Nodo)e).getTipo(), "not", eleft, eright);
+            String temp = newTemp();
+            emit(temp + " = not " + ((Nodo)e).getDir());
             Nodo n = new Nodo("not");
             n.addHijo((Nodo)e);
             n.setTipo("boolean");
+            n.setDir(temp);
             RESULT = n;
         :}
     | expr_bool:e
@@ -1479,22 +1631,35 @@ io ::= show:s {: RESULT = s; :}
     ;
 
 show ::= SHOW PARENTHESIS_OPEN show_arg:a PARENTHESIS_CLOSE ENDL
-    {: Nodo n = new Nodo("show"); n.addHijo((Nodo)a); RESULT = n; :}
+    {:
+        // Generar C3D para print
+        emit("print " + ((Nodo)a).getDir());
+        Nodo n = new Nodo("show");
+        n.addHijo((Nodo)a);
+        RESULT = n;
+    :}
     ;
 
 show_arg ::= expresion:e {: RESULT = e; :}
          ;
 
 get ::= GET PARENTHESIS_OPEN get_target:t PARENTHESIS_CLOSE ENDL
-    {: Nodo n = new Nodo("get"); n.addHijo((Nodo)t); RESULT = n; :}
+    {:
+        // Generar C3D para read
+        emit("read " + ((Nodo)t).getDir());
+        Nodo n = new Nodo("get");
+        n.addHijo((Nodo)t);
+        RESULT = n;
+    :}
     ;
 
-get_target ::= ID:id 
-           {: 
+get_target ::= ID:id
+           {:
                String idStr = id.toString();
                checkID(idStr, idleft, idright);
-               Nodo n = new Nodo(idStr); 
-               RESULT = n; 
+               Nodo n = new Nodo(idStr);
+               n.setDir(idStr);
+               RESULT = n;
            :}
            | acceso_arreglo:a {: RESULT = a; :}
            ;
