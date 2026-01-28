@@ -658,21 +658,21 @@ asignacion_sentencia ::=
 
 // unario
 unario ::= INCREMENT ID:id
-                 {: Nodo n = new Nodo("++pre"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+                 {: 
+                     String idStr = id.toString();
+                     checkID(idStr, idleft, idright);
+                     Nodo n = new Nodo("++pre"); Nodo idn = new Nodo(idStr); n.addHijo(idn); RESULT = n; 
+                 :}
              | DECREMENT ID:id
-                 {: Nodo n = new Nodo("--pre"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
-             | ID:id INCREMENT
-                 {: Nodo n = new Nodo("++post"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
-             | ID:id DECREMENT
-                 {: Nodo n = new Nodo("--post"); Nodo idn = new Nodo((String)id); n.addHijo(idn); RESULT = n; :}
+                 {: 
+                     String idStr = id.toString();
+                     checkID(idStr, idleft, idright);
+                     Nodo n = new Nodo("--pre"); Nodo idn = new Nodo(idStr); n.addHijo(idn); RESULT = n; 
+                 :}
              | INCREMENT acceso_arreglo:a
                  {: Nodo n = new Nodo("++pre"); n.addHijo((Nodo)a); RESULT = n; :}
              | DECREMENT acceso_arreglo:a
                  {: Nodo n = new Nodo("--pre"); n.addHijo((Nodo)a); RESULT = n; :}
-             | acceso_arreglo:a INCREMENT
-                 {: Nodo n = new Nodo("++post"); n.addHijo((Nodo)a); RESULT = n; :}
-             | acceso_arreglo:a DECREMENT
-                 {: Nodo n = new Nodo("--post"); n.addHijo((Nodo)a); RESULT = n; :}
              ;
 
 /*
@@ -965,7 +965,11 @@ asignacion_elemento ::= acceso_arreglo:a ASSIGN expresion:e ENDL
     ;
 
 acceso_arreglo ::= ID:id ARRAY_OPEN expresion:e1 ARRAY_CLOSE ARRAY_OPEN expresion:e2 ARRAY_CLOSE
-    {: Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; :}
+    {: 
+        String idStr = id.toString();
+        checkArray(idStr, idleft, idright);
+        Nodo n = new Nodo("acceso_arreglo"); Nodo nid = new Nodo(idStr); n.addHijo(nid); n.addHijo((Nodo)e1); n.addHijo((Nodo)e2); RESULT = n; 
+    :}
     ; 
 
 elementos ::= INT_LIT:i
@@ -999,9 +1003,17 @@ arreglo_init ::= BLOCK_OPEN filas:f BLOCK_CLOSE
 */
 
 llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
-        {: Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(id); n.addHijo(nid); n.addHijo((Nodo)a); RESULT = n; :}
+        {: 
+            String idStr = id.toString();
+            checkCall(idStr, idleft, idright);
+            Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(idStr); n.addHijo(nid); n.addHijo((Nodo)a); RESULT = n; 
+        :}
     | ID:id PARENTHESIS_OPEN PARENTHESIS_CLOSE
-        {: Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(id); n.addHijo(nid); RESULT = n; :}
+        {: 
+            String idStr = id.toString();
+            checkCall(idStr, idleft, idright);
+            Nodo n = new Nodo("llamada"); Nodo nid = new Nodo(idStr); n.addHijo(nid); RESULT = n; 
+        :}
           ;
 
 args ::= args:as COMMA expresion:e
@@ -1048,7 +1060,12 @@ power ::= factor:f1 POWER power:f2
 factor ::= literal:l
         {: RESULT = l; :}
     | ID:id
-        {: Nodo n = new Nodo(id); RESULT = n; :}
+        {: 
+            String idStr = id.toString();
+            checkID(idStr, idleft, idright);
+            Nodo n = new Nodo(idStr); 
+            RESULT = n; 
+        :}
     | acceso_arreglo:a
         {: RESULT = a; :}
     | llamada:ll
@@ -1125,7 +1142,13 @@ get ::= GET PARENTHESIS_OPEN get_target:t PARENTHESIS_CLOSE ENDL
     {: Nodo n = new Nodo("get"); n.addHijo((Nodo)t); RESULT = n; :}
     ;
 
-get_target ::= ID:id {: Nodo n = new Nodo(id); RESULT = n; :}
+get_target ::= ID:id 
+           {: 
+               String idStr = id.toString();
+               checkID(idStr, idleft, idright);
+               Nodo n = new Nodo(idStr); 
+               RESULT = n; 
+           :}
            | acceso_arreglo:a {: RESULT = a; :}
            ;
 
