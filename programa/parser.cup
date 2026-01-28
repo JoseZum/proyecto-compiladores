@@ -1,7 +1,3 @@
-/*
- * parser.cup contiene la gramatica, scopes, tabla de simbolos analizador lexico y sintáctico para el lenguaje 
- */
-
 import java_cup.runtime.*;
 import java.util.*;
 
@@ -351,6 +347,43 @@ parser code {:
         System.out.println("------------------------------\n");
     }
 
+    /* ---------- GENERACIÓN DE CÓDIGO C3D ---------- */
+
+    // Buffer para acumular código de tres direcciones
+    StringBuilder cod3D = new StringBuilder();
+
+    // Contador de temporales (t1, t2, t3...)
+    int tempCount = 0;
+
+    // Contador de etiquetas (L1, L2, L3...)
+    int labelCount = 0;
+
+    // Pila de etiquetas para estructuras de control anidadas
+    Deque<String> loopStartLabels = new ArrayDeque<>();
+    Deque<String> loopEndLabels = new ArrayDeque<>();
+
+    // Genera un nuevo temporal único
+    String newTemp() {
+        return "t" + (++tempCount);
+    }
+
+    // Genera una nueva etiqueta única
+    String newLabel() {
+        return "L" + (++labelCount);
+    }
+
+    // Emite una instrucción al buffer C3D
+    void emit(String instruccion) {
+        cod3D.append(instruccion).append("\n");
+    }
+
+    // Imprime el código C3D generado
+    void printC3D() {
+        System.out.println("\n---------- CÓDIGO DE TRES DIRECCIONES ----------");
+        System.out.println(cod3D.toString());
+        System.out.println("-------------------------------------------------\n");
+    }
+
     /*----------errores sintacticos----------*/
     public void syntax_error(Symbol s) {
         addError("[SINTACTICO] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
@@ -428,6 +461,7 @@ programa ::=
           System.out.println("Programa reconocido.");
           raizAST.arbol();
           printTablas();
+          printC3D();
           RESULT = n;
       :}
     | main:m
@@ -438,6 +472,7 @@ programa ::=
           System.out.println("Programa reconocido.");
           raizAST.arbol();
           printTablas();
+          printC3D();
           RESULT = n;
       :}
     ;
@@ -516,6 +551,9 @@ decl_global ::=
           // Verificar compatibilidad de tipos
           checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
 
+          // Generar C3D para la asignación global
+          emit(idStr + " = " + ((Nodo)e).getDir());
+
           Nodo n = new Nodo("decl_global_asign");
           n.addHijo(new Nodo("world"));
           n.addHijo((Nodo)t);
@@ -556,12 +594,12 @@ tipo ::=
         ;
 
 // literal
-literal ::= 
-            INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); RESULT=n; :}
-        | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); RESULT=n; :}
-        | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); RESULT=n; :}
-        | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); RESULT=n; :}
-        | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); RESULT=n; :}
+literal ::=
+            INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); n.setDir(i.toString()); RESULT=n; :}
+        | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); n.setDir(f.toString()); RESULT=n; :}
+        | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); n.setDir(b.toString()); RESULT=n; :}
+        | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); n.setDir("'" + c.toString() + "'"); RESULT=n; :}
+        | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); n.setDir("\"" + s.toString() + "\""); RESULT=n; :}
         ;
 
 
@@ -617,14 +655,19 @@ param ::=
 
 /*
 ----------MAIN----------*/
-main ::= 
+main ::=
       COAL_TYPE NAVIDAD:nav
-      {: 
-          declareMain(navleft, navright); 
-          pushNamedScope("navidad"); 
+      {:
+          declareMain(navleft, navright);
+          pushNamedScope("navidad");
+          // Generar etiqueta de inicio de main
+          emit("# MAIN navidad");
+          emit("navidad:");
       :}
       PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
-      {: 
+      {:
+          emit("# END MAIN");
+
           Nodo n=new Nodo("main");
           n.addHijo(new Nodo("coal"));
           n.addHijo(new Nodo("navidad"));
@@ -644,16 +687,21 @@ main ::=
 
 /*
 ----------FUNCION----------*/
-funcion ::= 
+funcion ::=
       GIFT tipo:t ID:id
-      {: 
+      {:
           String idStr = id.toString();
           declareFunc(idStr, ((Nodo)t).getTipo(), idleft, idright);
           pushNamedScope(idStr);
+          // Generar etiqueta de inicio de función
+          emit("# FUNC " + idStr);
+          emit(idStr + ":");
       :}
       PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE bloque:b
-      {: 
+      {:
           String idStr = id.toString();
+          emit("# END FUNC " + idStr);
+
           Nodo n=new Nodo("funcion");
           n.addHijo(new Nodo("gift"));
           Nodo nid=new Nodo(idStr); nid.setTipo(((Nodo)t).getTipo());
@@ -716,6 +764,9 @@ asignacion ::=
           // Verificar compatibilidad de tipos
           checkAssignment(tipoVar, ((Nodo)e).getTipo(), idStr, idleft, idright);
 
+          // Generar C3D para la asignación
+          emit(idStr + " = " + ((Nodo)e).getDir());
+
           Nodo n=new Nodo("asignacion_decl");
           n.addHijo((Nodo)a);
           Nodo nid=new Nodo(idStr); nid.setTipo(tipoVar);
@@ -723,6 +774,7 @@ asignacion ::=
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
+          n.setDir(idStr);
           RESULT=n;
       :}
     ;
@@ -738,12 +790,16 @@ reasignacion ::=
           // Verificar compatibilidad de tipos
           checkAssignment(varType, ((Nodo)e).getTipo(), idStr, idleft, idright);
 
+          // Generar C3D para la reasignación
+          emit(idStr + " = " + ((Nodo)e).getDir());
+
           Nodo n=new Nodo("reasignacion");
           Nodo nid=new Nodo(idStr);
           nid.setTipo(varType);
           n.addHijo(nid);
           n.addHijo(new Nodo("="));
           n.addHijo((Nodo)e);
+          n.setDir(idStr);
           RESULT=n;
       :}
     ;
@@ -775,11 +831,15 @@ unario ::= INCREMENT ID:id
                      checkID(idStr, idleft, idright);
                      String t = getIdType(idStr, idleft, idright);
                      checkUnary(t, "++", idleft, idright);
+                     // Generar C3D para incremento
+                     emit(idStr + " = " + idStr + " + 1");
                      Nodo n = new Nodo("++pre");
                      Nodo idn = new Nodo(idStr);
                      idn.setTipo(t);
+                     idn.setDir(idStr);
                      n.addHijo(idn);
                      n.setTipo(t);
+                     n.setDir(idStr);
                      RESULT = n;
                  :}
              | DECREMENT ID:id
@@ -788,29 +848,45 @@ unario ::= INCREMENT ID:id
                      checkID(idStr, idleft, idright);
                      String t = getIdType(idStr, idleft, idright);
                      checkUnary(t, "--", idleft, idright);
+                     // Generar C3D para decremento
+                     emit(idStr + " = " + idStr + " - 1");
                      Nodo n = new Nodo("--pre");
                      Nodo idn = new Nodo(idStr);
                      idn.setTipo(t);
+                     idn.setDir(idStr);
                      n.addHijo(idn);
                      n.setTipo(t);
+                     n.setDir(idStr);
                      RESULT = n;
                  :}
              | INCREMENT acceso_arreglo:a
                  {:
                      String t = ((Nodo)a).getTipo();
                      checkUnary(t, "++", aleft, aright);
+                     String arrDir = ((Nodo)a).getDir();
+                     // Generar C3D para incremento de elemento de arreglo
+                     String temp = newTemp();
+                     emit(temp + " = " + arrDir + " + 1");
+                     emit(arrDir + " = " + temp);
                      Nodo n = new Nodo("++pre");
                      n.addHijo((Nodo)a);
                      n.setTipo(t);
+                     n.setDir(arrDir);
                      RESULT = n;
                  :}
              | DECREMENT acceso_arreglo:a
                  {:
                      String t = ((Nodo)a).getTipo();
                      checkUnary(t, "--", aleft, aright);
+                     String arrDir = ((Nodo)a).getDir();
+                     // Generar C3D para decremento de elemento de arreglo
+                     String temp = newTemp();
+                     emit(temp + " = " + arrDir + " - 1");
+                     emit(arrDir + " = " + temp);
                      Nodo n = new Nodo("--pre");
                      n.addHijo((Nodo)a);
                      n.setTipo(t);
+                     n.setDir(arrDir);
                      RESULT = n;
                  :}
              ;
