@@ -1,0 +1,10 @@
+gift int suma ¿int a, int b? ¡
+    return a + b endl
+!
+
+coal navidad ¿? ¡
+    local int x = 5 endl
+    local int y = 10 endl
+    local int resultado = suma¿x, y? endl
+    show ¿resultado? endl
+!
