@@ -352,6 +352,10 @@ parser code {:
     // Buffer para acumular código de tres direcciones
     StringBuilder cod3D = new StringBuilder();
 
+    public String getCod3D() {
+        return cod3D.toString();
+    }
+
     // Contador de temporales (t1, t2, t3...)
     int tempCount = 0;
 
@@ -1646,10 +1650,21 @@ io ::= show:s {: RESULT = s; :}
 
 show ::= SHOW PARENTHESIS_OPEN show_arg:a PARENTHESIS_CLOSE ENDL
     {:
-        // Generar C3D para print
-        emit("print " + ((Nodo)a).getDir());
+        // Generar C3D para print con tipo
+        Nodo arg = (Nodo)a;
+        String tipo = arg.getTipo();
+        String cmd = "print";
+        
+        if (tipo != null) {
+            if (tipo.equals("int")) cmd = "print_int";
+            else if (tipo.equals("float")) cmd = "print_float";
+            else if (tipo.equals("char")) cmd = "print_char";
+            else if (tipo.equals("string")) cmd = "print_string";
+        }
+        
+        emit(cmd + " " + arg.getDir());
         Nodo n = new Nodo("show");
-        n.addHijo((Nodo)a);
+        n.addHijo(arg);
         RESULT = n;
     :}
     ;
@@ -1659,8 +1674,18 @@ show_arg ::= expresion:e {: RESULT = e; :}
 
 get ::= GET PARENTHESIS_OPEN get_target:t PARENTHESIS_CLOSE ENDL
     {:
-        // Generar C3D para read
-        emit("read " + ((Nodo)t).getDir());
+        // Generar C3D para read con tipo
+        String idv = ((Nodo)t).getDir();
+        SymInfo info = lookup(idv);
+        String tipo = (info != null) ? info.type : "int";
+        String cmd = "read";
+
+        if (tipo.equals("int")) cmd = "read_int";
+        else if (tipo.equals("float")) cmd = "read_float";
+        else if (tipo.equals("char")) cmd = "read_char";
+        else if (tipo.equals("string")) cmd = "read_string";
+
+        emit(cmd + " " + idv);
         Nodo n = new Nodo("get");
         n.addHijo((Nodo)t);
         RESULT = n;

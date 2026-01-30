@@ -1,0 +1,70 @@
+| Test de Traducción MIPS Completo
+| Este archivo prueba todas las funcionalidades implementadas en el traductor
+| Se han renombrado variables conflictivas (mult, div)
+
+gift int sumar ¿int a, int b? ¡
+    return a + b endl
+!
+
+gift int potencia ¿int base, int exp? ¡
+    local int res = base ^ exp endl
+    return res endl
+!
+
+coal navidad ¿? ¡
+    show ¿"--- INICIO TEST MIPS ---"? endl
+
+    | 1. Variables y Aritmética
+    local int x = 10 endl
+    local int y = 5 endl
+    local int resSuma = x + y endl
+    local int resResta = x - y endl
+    local int resMult = x * y endl
+    local int resDiv = x / y endl
+    
+    show ¿"Suma (15):"? endl
+    show ¿resSuma? endl
+    show ¿"Resta (5):"? endl
+    show ¿resResta? endl
+    show ¿"Mult (50):"? endl
+    show ¿resMult? endl
+    show ¿"Div (2):"? endl
+    show ¿resDiv? endl
+
+    | 2. Estructuras de Control (decide/if)
+    show ¿"Prueba IF (expect: x mayor que y):"? endl
+    decide of
+        x > y -> ¡
+            show ¿"x es mayor que y"? endl
+        !
+    else -> ¡
+        show ¿"x no es mayor que y"? endl
+    !
+    end decide endl
+
+    | 3. Funciones
+    local int callSuma = sumar¿x, y? endl
+    show ¿"Llamada Funcion Suma (15):"? endl
+    show ¿callSuma? endl
+
+    local int callPow = potencia¿2, 3? endl
+    show ¿"Llamada Funcion Potencia (8):"? endl
+    show ¿callPow? endl
+
+    | 4. Ciclo (loop)
+    | Estructura Correcta:
+    | loop
+    |     bloque de sentencias
+    | exit when ¿condicion? endl
+    | end loop endl
+
+    show ¿"Prueba Ciclo (1 al 3):"? endl
+    local int i = 1 endl
+    loop
+        show ¿i? endl
+        i = i + 1 endl
+    exit when ¿i > 3? endl
+    end loop endl
+
+    show ¿"--- FIN TEST MIPS ---"? endl
+!

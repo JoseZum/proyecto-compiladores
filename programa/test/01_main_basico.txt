@@ -1,6 +1,27 @@
-| Test 01: Main básico |
-| Prueba la estructura mínima de un programa Navidad |
+coal navidad ¿ ? ¡
+    | Declaracion de variables
+    local int a endl
+    local float f endl
+    local char c endl
+    
+    | -- PRIMERA PARTE: ENTEROS --
+    show ¿ "--- TEST IO TYPES ---" ? endl
+    show ¿ "Introduce un Entero:" ? endl
+    get ¿ a ? endl
+    show ¿ "Leido:" ? endl
+    show ¿ a ? endl
 
-coal navidad ¿? ¡
-    show ¿"Hola Navidad!"? endl
+    | -- SEGUNDA PARTE: FLOTANTES --
+    | Nota: Esto usara readInt/showInt hasta que se actualice el traductor
+    show ¿ "Introduce un Flotante:" ? endl
+    get ¿ f ? endl
+    show ¿ "Leido:" ? endl
+    show ¿ f ? endl
+
+    | -- TERCERA PARTE: CARACTERES --
+    | Nota: Esto usara readInt/showInt hasta que se actualice el traductor
+    show ¿ "Introduce un Caracter:" ? endl
+    get ¿ c ? endl
+    show ¿ "Leido:" ? endl
+    show ¿ c ? endl
 !

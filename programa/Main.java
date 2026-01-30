@@ -115,8 +115,22 @@ public class Main {
         Lexer lexer = new Lexer(fileReader);
         parser parser = new parser(lexer);
 
+        Symbol result = parser.parse(); //ejecuta el metodo parse para iniciar el analisis sintactico
         
-        Symbol result = parser.parse();//ejecuta el metodo parse para iniciar el analisis sintactico
+        // --- GENERACIÓN DE MIPS ---
+        String c3d = parser.getCod3D();
+        if (c3d != null && !c3d.isEmpty()) {
+            System.out.println("Generando código MIPS...");
+            traductor trad = new traductor(c3d);
+            String mipsCode = trad.traducir();
+            
+            // Determinar nombre del archivo .asm
+            String nombreAsm = archivo.substring(0, archivo.lastIndexOf('.')) + ".asm";
+            try (PrintWriter out = new PrintWriter(new FileWriter(nombreAsm))) {
+                out.println(mipsCode);
+            }
+            System.out.println("Código MIPS guardado en: " + nombreAsm);
+        }
 
         fileReader.close();
     }
