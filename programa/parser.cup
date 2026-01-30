@@ -424,7 +424,7 @@ terminal ID;
 /*
 ----------NO TERMINALES----------*/
 
-non terminal programa, funciones, funcion, main, globales, decl_global, declaraciones_top, decl_top;
+non terminal programa, funcion, main, decl_global, declaraciones_top, decl_top;
 non terminal tipo, literal, alcance;
 non terminal params, params_opt, param;
 non terminal creacion, creacion_sentencia, asignacion, asignacion_sentencia;
@@ -441,6 +441,7 @@ non terminal expresion;
 non terminal expr_aritm, term, power, factor;
 non terminal expr_relacional, expresion_rel, operador_rel;
 non terminal expr_logica, expr_and, expr_not, expr_bool;
+non terminal loop_start, for_start, main_start;
 non terminal io, show, show_arg, get, get_target;
 
 /*
@@ -655,7 +656,7 @@ param ::=
 
 /*
 ----------MAIN----------*/
-main ::=
+main_start ::=
       COAL_TYPE NAVIDAD:nav
       {:
           declareMain(navleft, navright);
@@ -664,7 +665,10 @@ main ::=
           emit("# MAIN navidad");
           emit("navidad:");
       :}
-      PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
+    ;
+
+main ::=
+      main_start PARENTHESIS_OPEN PARENTHESIS_CLOSE bloque:b
       {:
           emit("# END MAIN");
 
@@ -677,7 +681,7 @@ main ::=
 
           RESULT=n;
       :}
-    | COAL_TYPE NAVIDAD error BLOCK_CLOSE
+    | main_start error BLOCK_CLOSE
       {:
           addError("[PANIC] Main navidad mal formado, sincronizado en cierre de bloque.");
           popScope();
@@ -1020,7 +1024,7 @@ for_init ::=
     ;
 
 // FOR - con scope propio para variables declaradas en el for
-for ::=
+for_start ::=
       FOR
       {:
           pushAutoScope("for");
@@ -1031,7 +1035,10 @@ for ::=
           loopEndLabels.push(lblEnd);
           emit("# FOR inicio");
       :}
-      PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL expresion:e PARENTHESIS_CLOSE bloque:b ENDL
+    ;
+
+for ::=
+      for_start PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL expresion:e PARENTHESIS_CLOSE bloque:b ENDL
       {:
           // Recuperar etiquetas del for
           String lblCond = loopStartLabels.pop();
@@ -1056,15 +1063,18 @@ for ::=
           popScope(); // Salir del scope del for
           RESULT=n;
       :}
-    | FOR error ENDL
+    | for_start error ENDL
       {:
           addError("[PANIC] Estructura FOR inválida, sincronizado en ENDL.");
+          loopStartLabels.pop();
+          loopEndLabels.pop();
+          popScope();
           RESULT=new Nodo("for_error");
       :}
     ;
 
 // LOOP - con scope propio
-loop ::=
+loop_start ::=
       LOOP
       {:
           pushAutoScope("loop");
@@ -1076,7 +1086,10 @@ loop ::=
           emit("# LOOP inicio");
           emit(lblStart + ":");
       :}
-      sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
+    ;
+
+loop ::=
+      loop_start sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
       {:
           // Recuperar etiquetas del loop
           String lblStart = loopStartLabels.pop();
@@ -1094,9 +1107,12 @@ loop ::=
           popScope(); // Salir del scope del loop
           RESULT=n;
       :}
-    | LOOP error END LOOP ENDL
+    | loop_start error END LOOP ENDL
       {:
           addError("[PANIC] Estructura LOOP inválida, sincronizado en END LOOP.");
+          loopStartLabels.pop();
+          loopEndLabels.pop();
+          popScope();
           RESULT=new Nodo("loop_error");
       :}
     ;
@@ -1619,8 +1635,6 @@ expr_not ::= NOT expr_not:e
 expr_bool ::= expr_relacional:e
         {: RESULT = e; :}
     | expr_aritm:e
-        {: RESULT = e; :}
-    | PARENTHESIS_OPEN expr_logica:e PARENTHESIS_CLOSE
         {: RESULT = e; :}
     ;
 

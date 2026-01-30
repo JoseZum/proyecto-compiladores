@@ -58,7 +58,7 @@ fi\n\
 echo ""\n\
 echo "Building parser..."\n\
 if [ -f "parser.cup" ]; then\n\
-    java java_cup.Main parser.cup\n\
+    java java_cup.Main -expect 0 parser.cup\n\
     echo "✓ Parser generated"\n\
 else\n\
     echo "⚠ parser.cup not found"\n\
