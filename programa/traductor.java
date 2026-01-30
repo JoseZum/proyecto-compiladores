@@ -12,12 +12,22 @@ public class traductor {
     private HashSet<String> variables;
     private Map<String, String> strings;
     private int stringCount = 0;
+    private Map<String, Integer> arrayCols; // Para guardar la dimension 2 (columnas)
+    private Map<String, Integer> arraySizes; // Para guardar el tamaño total en bytes
+
+    private StringBuilder mainMips;
+    private StringBuilder funcMips;
+    private boolean inFunction = false;
 
     public traductor(String c3d) {
         this.c3d = c3d;
         this.mips = new StringBuilder();
+        this.mainMips = new StringBuilder();
+        this.funcMips = new StringBuilder();
         this.variables = new HashSet<>();
         this.strings = new HashMap<>();
+        this.arrayCols = new HashMap<>();
+        this.arraySizes = new HashMap<>();
     }
 
     public String traducir() {
@@ -49,11 +59,24 @@ public class traductor {
                 }
             }
 
+            // Detección de arrays: array name, d1, d2
+            if (linea.startsWith("array ")) {
+                // array name, d1, d2;
+                String[] parts = linea.substring(6).split(",");
+                String name = parts[0].trim();
+                int d1 = Integer.parseInt(parts[1].trim());
+                int d2 = Integer.parseInt(parts[2].trim());
+                arrayCols.put(name, d2);
+                arraySizes.put(name, d1 * d2 * 4); // 4 bytes por int
+                continue; // No procesar como variable normal, pero continuar con otras líneas
+            }
+
             // Detección de variables y temporales
             String sinStrings = linea.replaceAll("\".*?\"", " ");
-            String[] tokens = sinStrings.split("[\\s\\+\\-\\*/()=,]+");
+            // Split on operators, brackets, parentheses, etc.
+            String[] tokens = sinStrings.split("[\\s\\+\\-\\*/()=,\\[\\]]+");
             for (String token : tokens) {
-                if (token.matches("[a-zA-Z_][a-zA-Z0-9_]*") && !isReserved(token)) {
+                if (token.matches("[a-zA-Z_][a-zA-Z0-9_]*") && !isReserved(token) && !arraySizes.containsKey(token)) {
                     variables.add(token);
                 }
             }
@@ -73,7 +96,24 @@ public class traductor {
     private boolean isReserved(String t) {
         return t.equals("goto") || t.equals("if") || t.equals("ifFalse") ||
                 t.equals("call") || t.equals("param") || t.equals("return") ||
-                t.equals("print") || t.equals("read");
+                t.equals("print") || t.equals("read") || t.equals("read_int") ||
+                t.equals("read_float") || t.equals("read_char") || t.equals("read_string") ||
+                t.equals("print_int") || t.equals("print_float") || t.equals("print_char") ||
+                t.equals("print_string") || t.equals("array") || t.equals("to");
+    }
+
+    /**
+     * Asegura que una variable esté registrada en el conjunto de variables.
+     * Esto es necesario para variables que se generan dinámicamente durante la
+     * traducción.
+     */
+    private void ensureVariableExists(String varName) {
+        if (varName != null && !varName.isEmpty() &&
+                varName.matches("[a-zA-Z_][a-zA-Z0-9_]*") &&
+                !isReserved(varName) &&
+                !arraySizes.containsKey(varName)) {
+            variables.add(varName);
+        }
     }
 
     /**
@@ -89,6 +129,15 @@ public class traductor {
                     .append(entry.getKey()).append("\"\n");
         }
 
+        // Alinear a 4 bytes antes de arrays
+        mips.append("    .align 2\n");
+        mips.append("    # --- Arrays ---\n");
+        for (Map.Entry<String, Integer> entry : arraySizes.entrySet()) {
+            mips.append("    v_").append(entry.getKey()).append(": .space ").append(entry.getValue()).append("\n");
+        }
+
+        // Alinear a 4 bytes antes de variables
+        mips.append("    .align 2\n");
         mips.append("    # --- Variables y Temporales ---\n");
         for (String var : variables) {
             mips.append("    v_").append(var).append(": .word 0\n");
@@ -104,15 +153,24 @@ public class traductor {
 
         mips.append(".globl main\n\n");
         mips.append("main:\n");
+        mips.append("    # Salto al inicio del bloque principal (navidad)\n");
+        mips.append("    j navidad\n\n");
 
         String[] lineas = c3d.split("\n");
         for (String linea : lineas) {
             procesarLinea(linea.trim());
         }
 
+        // Agregar primero el código del main (navidad)
+        mips.append(mainMips);
+
         mips.append("\n    # Fin del programa (Exit)\n");
         mips.append("    li $v0, 10\n");
-        mips.append("    syscall\n");
+        mips.append("    syscall\n\n");
+
+        // Luego agregar las funciones
+        mips.append(funcMips);
+
         generarRuntime();
     }
 
@@ -145,38 +203,47 @@ public class traductor {
         if (linea.isEmpty())
             return;
 
+        // Detectar cambio de contexto (Main vs Función)
+        if (linea.startsWith("# FUNC ")) {
+            inFunction = true;
+        } else if (linea.startsWith("# MAIN ")) {
+            inFunction = false;
+        }
+
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+
         // MANEJO DE FUNCIONES (Basado en comentarios del C3D)
         if (linea.startsWith("# FUNC ")) {
-            mips.append("    ").append(linea).append("\n");
-            mips.append("    # Reserva de Frame y guardado de $ra\n");
-            mips.append("    subu $sp, $sp, 4\n");
-            mips.append("    sw $ra, ($sp)\n");
+            currentBuffer.append("    ").append(linea).append("\n");
+            currentBuffer.append("    # Reserva de Frame y guardado de $ra\n");
+            currentBuffer.append("    subu $sp, $sp, 4\n");
+            currentBuffer.append("    sw $ra, ($sp)\n");
             return;
         }
 
         if (linea.startsWith("#")) {
-            mips.append("    ").append(linea).append("\n");
+            currentBuffer.append("    ").append(linea).append("\n");
+            // Si termina una funcion, salir del modo funcion
+            if (linea.startsWith("# END FUNC")) {
+                inFunction = false;
+            }
             return;
         }
 
         // 1. ETIQUETAS (L1:, func:)
         if (linea.endsWith(":")) {
-            if (!linea.equals("navidad:") && !linea.equals("main:")) {
-                mips.append(linea).append("\n");
+            // FIX: Ya no ignoramos 'navidad:', permitimos todo excepto 'main:' manual si
+            // existiera
+            if (!linea.equals("main:")) {
+                currentBuffer.append(linea).append("\n");
             }
-            return;
-        }
-
-        // 2. ASIGNACIONES (t1 = a + b o t1 = call func)
-        if (linea.contains("=")) {
-            traducirAsignacion(linea);
             return;
         }
 
         String[] tokens = linea.split("\\s+");
         String cmd = tokens[0];
 
-        // 3. EL "CASE" PARA EL RESTO DE INSTRUCCIONES
+        // 2. EL "CASE" PARA INSTRUCCIONES (check print/read BEFORE assignments)
         switch (cmd) {
             case "goto":
                 traducirGoto(linea.substring(5).trim());
@@ -225,8 +292,16 @@ public class traductor {
                 String retVal = linea.length() > 6 ? linea.substring(7).trim() : null;
                 traducirReturn(retVal);
                 break;
+            case "array":
+                // No hace nada en runtime
+                break;
             default:
-                mips.append("    #ERROR. No se pudo traducir la linea ").append(linea).append("\n");
+                // 3. ASIGNACIONES (t1 = a + b o t1 = call func)
+                if (linea.contains("=")) {
+                    traducirAsignacion(linea);
+                } else {
+                    mips.append("    #ERROR. No se pudo traducir la linea ").append(linea).append("\n");
+                }
                 break;
         }
     }
@@ -234,9 +309,20 @@ public class traductor {
     // --- MÉTODOS DE TRADUCCIÓN (SKELETON) ---
 
     private void traducirAsignacion(String linea) {
+        // Asignación simple o compleja
+        // Usar los buffers correctos
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+
         // Si es una asignación producto de una llamada: t1 = call func
         if (linea.contains("call ")) {
             traducirCall(linea);
+            return;
+        }
+
+        // --- Chequeo de arreglos en asignacion (arr[i][j] = val) o lectura (t =
+        // arr[i][j])
+        if (linea.contains("[")) {
+            traducirArreglo(linea);
             return;
         }
 
@@ -246,182 +332,247 @@ public class traductor {
         String[] tokens = expr.split("\\s+");
 
         if (tokens.length == 1) {
-            mips.append("    # Asignación simple: ").append(res).append(" = ").append(tokens[0]).append("\n");
-            cargarEnRegistro("$t0", tokens[0]);
-            mips.append("    sw $t0, v_").append(res).append("\n");
+            // Check for cast: t1 = (float) t2
+            if (tokens[0].equals("(float)")) {
+                // Format: res = (float) val
+                // tokens: ["(float)", "val"] (actually expr split by space might behave
+                // differently)
+            }
+            // Better parsing for cast in top level
+        }
+
+        // Re-parsing to handle (float) logic cleanly
+        if (expr.startsWith("(float) ")) {
+            String val = expr.substring(8).trim();
+            traducirCastFloat(res, val);
+            return;
+        }
+
+        if (tokens.length == 1) {
+            String val = tokens[0];
+            // Fix: Check if value is a float literal to use correct instructions
+            // Pattern handles standard floats like 1.5, -0.5, 2.0
+            if (val.matches("-?\\d+\\.\\d+")) {
+                currentBuffer.append("    # Asignación float literal: ").append(res).append(" = ").append(val)
+                        .append("\n");
+                currentBuffer.append("    li.s $f0, ").append(val).append("\n");
+                currentBuffer.append("    s.s $f0, v_").append(res).append("\n");
+            } else {
+                currentBuffer.append("    # Asignación simple: ").append(res).append(" = ").append(val).append("\n");
+                cargarEnRegistro("$t0", val);
+                currentBuffer.append("    sw $t0, v_").append(res).append("\n");
+            }
         } else if (tokens.length == 3) {
             String op = tokens[1];
-            mips.append("    # Operación: ").append(linea).append("\n");
+            currentBuffer.append("    # Operación: ").append(linea).append("\n");
+
+            // Check if float operation
+            if (op.endsWith("f")) {
+                cargarEnRegistroFloat("$f0", tokens[0]);
+                cargarEnRegistroFloat("$f1", tokens[2]);
+
+                switch (op) {
+                    case "+f":
+                        currentBuffer.append("    add.s $f2, $f0, $f1\n");
+                        break;
+                    case "-f":
+                        currentBuffer.append("    sub.s $f2, $f0, $f1\n");
+                        break;
+                    case "*f":
+                        currentBuffer.append("    mul.s $f2, $f0, $f1\n");
+                        break;
+                    case "/f":
+                        currentBuffer.append("    div.s $f2, $f0, $f1\n");
+                        break;
+                }
+                currentBuffer.append("    s.s $f2, v_").append(res).append("\n");
+                return;
+            }
+
             cargarEnRegistro("$t0", tokens[0]);
             cargarEnRegistro("$t1", tokens[2]);
 
             // Case para cada operador
             switch (op) {
                 case "+":
-                    mips.append("    add $t2, $t0, $t1\n");
+                    currentBuffer.append("    add $t2, $t0, $t1\n");
                     break;
                 case "-":
-                    mips.append("    sub $t2, $t0, $t1\n");
+                    currentBuffer.append("    sub $t2, $t0, $t1\n");
                     break;
                 case "*":
-                    mips.append("    mul $t2, $t0, $t1\n");
+                    currentBuffer.append("    mul $t2, $t0, $t1\n");
                     break;
                 case "/":
                 case "//":
-                    mips.append("    div $t2, $t0, $t1\n");
+                    currentBuffer.append("    div $t2, $t0, $t1\n");
                     break;
                 case "%":
-                    mips.append("    rem $t2, $t0, $t1\n");
+                    currentBuffer.append("    rem $t2, $t0, $t1\n");
                     break;
                 case "==":
-                    mips.append("    seq $t2, $t0, $t1\n");
+                    currentBuffer.append("    seq $t2, $t0, $t1\n");
                     break;
                 case "!=":
-                    mips.append("    sne $t2, $t0, $t1\n");
+                    currentBuffer.append("    sne $t2, $t0, $t1\n");
                     break;
                 case ">":
-                    mips.append("    sgt $t2, $t0, $t1\n");
+                    currentBuffer.append("    sgt $t2, $t0, $t1\n");
                     break;
                 case "<":
-                    mips.append("    slt $t2, $t0, $t1\n");
+                    currentBuffer.append("    slt $t2, $t0, $t1\n");
                     break;
                 case ">=":
-                    mips.append("    sge $t2, $t0, $t1\n");
+                    currentBuffer.append("    sge $t2, $t0, $t1\n");
                     break;
                 case "<=":
-                    mips.append("    sle $t2, $t0, $t1\n");
+                    currentBuffer.append("    sle $t2, $t0, $t1\n");
                     break;
                 case "AND":
-                    mips.append("    and $t2, $t0, $t1\n");
+                    currentBuffer.append("    and $t2, $t0, $t1\n");
                     break;
                 case "OR":
-                    mips.append("    or $t2, $t0, $t1\n");
+                    currentBuffer.append("    or $t2, $t0, $t1\n");
                     break;
                 case "^":
-                    mips.append("    # Potencia usando subrutina\n");
-                    mips.append("    move $a0, $t0\n");
-                    mips.append("    move $a1, $t1\n");
-                    mips.append("    jal _pow\n");
-                    mips.append("    move $t2, $v0\n");
+                    currentBuffer.append("    # Potencia usando subrutina\n");
+                    currentBuffer.append("    move $a0, $t0\n");
+                    currentBuffer.append("    move $a1, $t1\n");
+                    currentBuffer.append("    jal _pow\n");
+                    currentBuffer.append("    move $t2, $v0\n");
                     break;
             }
-            mips.append("    sw $t2, v_").append(res).append("\n");
+            currentBuffer.append("    sw $t2, v_").append(res).append("\n");
         }
     }
 
     private void traducirGoto(String label) {
-        mips.append("    # Salto incondicional\n");
-        mips.append("    j ").append(label).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Salto incondicional\n");
+        currentBuffer.append("    j ").append(label).append("\n");
     }
 
     private void traducirIf(String linea) {
-        mips.append("    # Salto condicional: ").append(linea).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Salto condicional: ").append(linea).append("\n");
         // Formato: if cond goto Label
         String[] tokens = linea.split("\\s+");
         String cond = tokens[1];
         String label = tokens[3];
 
         cargarEnRegistro("$t0", cond);
-        mips.append("    bnez $t0, ").append(label).append("\n");
+        currentBuffer.append("    bnez $t0, ").append(label).append("\n");
     }
 
     private void traducirIfFalse(String linea) {
-        mips.append("    # Salto condicional inverso: ").append(linea).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Salto condicional inverso: ").append(linea).append("\n");
         // Formato: ifFalse cond goto Label
         String[] tokens = linea.split("\\s+");
         String cond = tokens[1];
         String label = tokens[3];
 
         cargarEnRegistro("$t0", cond);
-        mips.append("    beqz $t0, ").append(label).append("\n");
+        currentBuffer.append("    beqz $t0, ").append(label).append("\n");
     }
 
     // --- MÉTODOS PRINT ---
 
     private void traducirPrintInt(String val) {
-        mips.append("    # Imprimir Int: ").append(val).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Imprimir Int: ").append(val).append("\n");
         cargarEnRegistro("$a0", val);
-        mips.append("    jal showInt\n");
+        currentBuffer.append("    jal showInt\n");
         printNewline();
     }
 
     private void traducirPrintFloat(String val) {
-        mips.append("    # Imprimir Float: ").append(val).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Imprimir Float: ").append(val).append("\n");
         if (val.matches("-?\\d+\\.\\d+")) {
-            mips.append("    li.s $f12, ").append(val).append("\n");
+            currentBuffer.append("    li.s $f12, ").append(val).append("\n");
         } else {
             // Cargar variable float
-            mips.append("    l.s $f12, v_").append(val).append("\n");
+            currentBuffer.append("    l.s $f12, v_").append(val).append("\n");
         }
-        mips.append("    jal showFloat\n");
+        currentBuffer.append("    jal showFloat\n");
         printNewline();
     }
 
     private void traducirPrintString(String val) {
-        mips.append("    # Imprimir String: ").append(val).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Imprimir String: ").append(val).append("\n");
         if (val.startsWith("\"")) {
             String content = extraerString(val);
             String label = strings.get(content);
-            mips.append("    la $a0, ").append(label).append("\n");
+            currentBuffer.append("    la $a0, ").append(label).append("\n");
         } else {
             // Si fuera variable string (puntero)
-            mips.append("    lw $a0, v_").append(val).append("\n");
+            currentBuffer.append("    lw $a0, v_").append(val).append("\n");
         }
-        mips.append("    jal showString\n");
+        currentBuffer.append("    jal showString\n");
         printNewline();
     }
 
     private void traducirPrintChar(String val) {
-        mips.append("    # Imprimir Char: ").append(val).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Imprimir Char: ").append(val).append("\n");
         if (val.startsWith("'")) {
-            mips.append("    li $a0, ").append(val).append("\n");
+            currentBuffer.append("    li $a0, ").append(val).append("\n");
         } else {
-            mips.append("    lw $a0, v_").append(val).append("\n");
+            currentBuffer.append("    lw $a0, v_").append(val).append("\n");
         }
-        mips.append("    jal showChar\n");
+        currentBuffer.append("    jal showChar\n");
         printNewline();
     }
 
     private void printNewline() {
-        mips.append("    la $a0, newline\n");
-        mips.append("    jal showString\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    la $a0, newline\n");
+        currentBuffer.append("    jal showString\n");
     }
 
     // --- MÉTODOS READ ---
 
     private void traducirReadInt(String var) {
-        mips.append("    # Leer Int: ").append(var).append("\n");
-        mips.append("    jal readInt\n");
-        mips.append("    sw $v0, v_").append(var).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Leer Int: ").append(var).append("\n");
+        currentBuffer.append("    jal readInt\n");
+        currentBuffer.append("    sw $v0, v_").append(var).append("\n");
     }
 
     private void traducirReadFloat(String var) {
-        mips.append("    # Leer Float: ").append(var).append("\n");
-        mips.append("    jal readFloat\n");
-        mips.append("    s.s $f0, v_").append(var).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Leer Float: ").append(var).append("\n");
+        currentBuffer.append("    jal readFloat\n");
+        currentBuffer.append("    s.s $f0, v_").append(var).append("\n");
     }
 
     private void traducirReadChar(String var) {
-        mips.append("    # Leer Char: ").append(var).append("\n");
-        mips.append("    jal readChar\n");
-        mips.append("    sw $v0, v_").append(var).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Leer Char: ").append(var).append("\n");
+        currentBuffer.append("    jal readChar\n");
+        currentBuffer.append("    sw $v0, v_").append(var).append("\n");
     }
 
     private void traducirReadString(String var) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         // Para strings es más complejo (buffer), pero dejaremos el placeholder
-        mips.append("    # Leer String (Not fully supported): ").append(var).append("\n");
-        mips.append("    jal readString\n");
+        currentBuffer.append("    # Leer String (Not fully supported): ").append(var).append("\n");
+        currentBuffer.append("    jal readString\n");
     }
 
     private void traducirParam(String val) {
-        mips.append("    # Parámetro de función: ").append(val).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Parámetro de función: ").append(val).append("\n");
         cargarEnRegistro("$t0", val);
-        mips.append("    subu $sp, $sp, 4\n");
-        mips.append("    sw $t0, ($sp)\n");
+        currentBuffer.append("    subu $sp, $sp, 4\n");
+        currentBuffer.append("    sw $t0, ($sp)\n");
     }
 
     private void traducirCall(String linea) {
-        mips.append("    # Llamada a función: ").append(linea).append("\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Llamada a función: ").append(linea).append("\n");
         // Formato: [t1 =] call func, n
         String func;
         if (linea.contains("=")) {
@@ -431,16 +582,16 @@ public class traductor {
             func = linea.split("\\s+")[1].replace(",", "");
         }
 
-        mips.append("    jal ").append(func).append("\n");
+        currentBuffer.append("    jal ").append(func).append("\n");
 
-        // Limpieza de parámetros (suponiendo n parámetros del C3D, n se extrae si está
-        // disponible)
+        // Limpieza de parámetros (suponiendo n parámetros del C3D)
         if (linea.contains(",")) {
             String[] callParts = linea.split(",");
             try {
                 int nParams = Integer.parseInt(callParts[1].trim());
                 if (nParams > 0) {
-                    mips.append("    addu $sp, $sp, ").append(nParams * 4).append(" # Limpiar ").append(nParams)
+                    currentBuffer.append("    addu $sp, $sp, ").append(nParams * 4).append(" # Limpiar ")
+                            .append(nParams)
                             .append(" params\n");
                 }
             } catch (Exception e) {
@@ -450,29 +601,133 @@ public class traductor {
         // Si hay retorno, mover $v0 al temporal
         if (linea.contains("=")) {
             String res = linea.split("=")[0].trim();
-            mips.append("    sw $v0, v_").append(res).append("\n");
+            currentBuffer.append("    sw $v0, v_").append(res).append("\n");
         }
     }
 
     private void traducirReturn(String val) {
-        mips.append("    # Retorno de función\n");
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Retorno de función\n");
         if (val != null) {
             cargarEnRegistro("$v0", val); // Poner valor de retorno en $v0
         }
-        mips.append("    # Restaurar $ra y Frame\n");
-        mips.append("    lw $ra, ($sp)\n");
-        mips.append("    addu $sp, $sp, 4\n");
-        mips.append("    jr $ra\n");
+        currentBuffer.append("    # Restaurar $ra y Frame\n");
+        currentBuffer.append("    lw $ra, ($sp)\n");
+        currentBuffer.append("    addu $sp, $sp, 4\n");
+        currentBuffer.append("    jr $ra\n");
     }
 
     /**
      * Helper para cargar un valor (entero o variable) en un registro.
      */
     private void cargarEnRegistro(String reg, String val) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         if (val.matches("-?\\d+")) {
-            mips.append("    li ").append(reg).append(", ").append(val).append("\n");
+            currentBuffer.append("    li ").append(reg).append(", ").append(val).append("\n");
         } else {
-            mips.append("    lw ").append(reg).append(", v_").append(val).append("\n");
+            currentBuffer.append("    lw ").append(reg).append(", v_").append(val).append("\n");
+        }
+    }
+
+    // --- MANEJO DE ARREGLOS ---
+
+    private void traducirArreglo(String linea) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        // Dos casos:
+        // 1. Asignacion a arreglo: arr[i][j] = val
+        // 2. Lectura de arreglo: t1 = arr[i][j]
+
+        // Parsear: arrId[i][j]
+        // Buscar el primer '['
+        int b1 = linea.indexOf("[");
+        if (b1 == -1)
+            return;
+
+        // Si empieza con una variable y luego =, es lectura (t1 = ...)
+        // Si empieza con el ID del arreglo (antes del [), es asignacion
+
+        String preBracket = linea.substring(0, b1).trim();
+        boolean esAsignacionAArreglo = !preBracket.contains("=");
+
+        if (esAsignacionAArreglo) {
+            // Caso: arr[i][j] = val
+            String[] parts = linea.split("=");
+            String val = parts[1].trim();
+            String leftSide = parts[0].trim();
+
+            procesarDireccionArreglo(leftSide, "$t3"); // $t3 tendrá la dirección
+
+            cargarEnRegistro("$t0", val);
+            currentBuffer.append("    sw $t0, ($t3)\n");
+
+        } else {
+            // Caso: t1 = arr[i][j]
+            String[] parts = linea.split("=");
+            String dest = parts[0].trim();
+            String rightSide = parts[1].trim();
+
+            procesarDireccionArreglo(rightSide, "$t3"); // $t3 tendrá la dirección
+
+            currentBuffer.append("    lw $t0, ($t3)\n");
+            currentBuffer.append("    sw $t0, v_").append(dest).append("\n");
+        }
+    }
+
+    // Calcula la dirección del elemento arr[i][j] y la pone en regDest
+    private void procesarDireccionArreglo(String acceso, String regDest) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        // acceso tiene la forma: arr[i][j]
+        // extraer arr, i, j
+        int b1 = acceso.indexOf("[");
+        String arrName = acceso.substring(0, b1).trim();
+
+        // Obtener indices. Parseo simplificado asumiendo formato fijo arr[i][j]
+        String resto = acceso.substring(b1); // [i][j]
+        String[] indices = resto.replace("][", ",").replace("[", "").replace("]", "").split(",");
+        String i = indices[0].trim();
+        String j = indices[1].trim();
+
+        int cols = arrayCols.getOrDefault(arrName, 0);
+
+        // Calcular offset = (i * cols + j) * 4
+
+        // Cargar i en $t1
+        cargarEnRegistro("$t1", i);
+        // Cargar col en $t2
+        currentBuffer.append("    li $t2, ").append(cols).append("\n");
+        // $t1 = i * cols
+        currentBuffer.append("    mul $t1, $t1, $t2\n");
+
+        // Cargar j en $t2
+        cargarEnRegistro("$t2", j);
+        // $t1 = (i*cols) + j
+        currentBuffer.append("    add $t1, $t1, $t2\n");
+
+        // $t1 = $t1 * 4 (offset en bytes)
+        currentBuffer.append("    mul $t1, $t1, 4\n");
+
+        // Cargar direccion base de arr en regDest
+        currentBuffer.append("    la ").append(regDest).append(", v_").append(arrName).append("\n");
+
+        // Sumar offset
+        currentBuffer.append("    add ").append(regDest).append(", ").append(regDest).append(", $t1\n");
+    }
+
+    private void traducirCastFloat(String res, String val) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Cast to Float: ").append(res).append(" = (float) ").append(val).append("\n");
+        cargarEnRegistro("$t0", val); // Cargar entero
+        currentBuffer.append("    mtc1 $t0, $f0\n"); // Mover a coprocesador
+        currentBuffer.append("    cvt.s.w $f0, $f0\n"); // Convertir int a float
+        currentBuffer.append("    s.s $f0, v_").append(res).append("\n"); // Guardar
+    }
+
+    private void cargarEnRegistroFloat(String reg, String val) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        if (val.matches("-?\\d+(\\.\\d+)?")) { // Literal float
+            currentBuffer.append("    li.s ").append(reg).append(", ").append(val).append("\n");
+        } else {
+            currentBuffer.append("    l.s ").append(reg).append(", v_").append(val).append("\n");
         }
     }
 }

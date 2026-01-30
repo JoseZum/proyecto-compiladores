@@ -1,27 +1,48 @@
+| Test Completo: Arreglos 2D |
+
 coal navidad ¿ ? ¡
-    | Declaracion de variables
-    local int a endl
-    local float f endl
-    local char c endl
-    
-    | -- PRIMERA PARTE: ENTEROS --
-    show ¿ "--- TEST IO TYPES ---" ? endl
-    show ¿ "Introduce un Entero:" ? endl
-    get ¿ a ? endl
-    show ¿ "Leido:" ? endl
-    show ¿ a ? endl
+    | 1. Declaracion de arreglo 2x3 |
+    world int matriz[2][3] endl
 
-    | -- SEGUNDA PARTE: FLOTANTES --
-    | Nota: Esto usara readInt/showInt hasta que se actualice el traductor
-    show ¿ "Introduce un Flotante:" ? endl
-    get ¿ f ? endl
-    show ¿ "Leido:" ? endl
-    show ¿ f ? endl
+    | 2. Inicializacion manual |
+    matriz[0][0] = 10 endl
+    matriz[0][1] = 20 endl
+    matriz[0][2] = 30 endl
+    matriz[1][0] = 40 endl
+    matriz[1][1] = 50 endl
+    matriz[1][2] = 60 endl
 
-    | -- TERCERA PARTE: CARACTERES --
-    | Nota: Esto usara readInt/showInt hasta que se actualice el traductor
-    show ¿ "Introduce un Caracter:" ? endl
-    get ¿ c ? endl
-    show ¿ "Leido:" ? endl
-    show ¿ c ? endl
+    | 3. Lectura y muestra de valores |
+    show ¿ "Matriz[0][0] = " ? endl
+    show ¿ matriz[0][0] ? endl
+
+    show ¿ "Matriz[0][1] = " ? endl
+    show ¿ matriz[0][1] ? endl
+
+    show ¿ "Matriz[1][2] = " ? endl
+    show ¿ matriz[1][2] ? endl
+
+    | 4. Operaciones aritmeticas con elementos |
+    local int suma endl
+    suma = matriz[0][0] + matriz[1][1] endl
+    show ¿ "10 + 50 = " ? endl
+    show ¿ suma ? endl
+
+    | 5. Modificacion de valores |
+    matriz[0][0] = matriz[0][0] * 2 endl
+    show ¿ "Matriz[0][0] * 2 = " ? endl
+    show ¿ matriz[0][0] ? endl
+
+    | 6. Uso de variables como indices |
+    local int i endl
+    local int j endl
+    i = 1 endl
+    j = 2 endl
+    show ¿ "Matriz[i][j] donde i=1, j=2: " ? endl
+    show ¿ matriz[i][j] ? endl
+
+    | 7. Asignacion usando indices variables |
+    matriz[i][j] = 99 endl
+    show ¿ "Nuevo valor de Matriz[1][2] = " ? endl
+    show ¿ matriz[1][2] ? endl
 !

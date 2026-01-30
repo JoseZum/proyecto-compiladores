@@ -570,12 +570,23 @@ decl_global ::=
           RESULT = n;
       :}
     | WORLD decl_arreglo:d ENDL
-      {:
-          Nodo n = new Nodo("decl_global_array");
-          n.addHijo(new Nodo("world"));
-          n.addHijo((Nodo)d);
-          RESULT = n;
-      :}
+       {:
+           Nodo decl = (Nodo)d;
+           // decl_arreglo tiene hijos: tipo, id, dim
+           Nodo idNode = (Nodo)decl.hijos.get(1);
+           Nodo dimNode = (Nodo)decl.hijos.get(2);
+           String idStr = idNode.lexema; // Ojo: decl_arreglo crea nodo con lexema ID 
+           // dim tiene hijos: d1, d2
+           String d1 = ((Nodo)dimNode.hijos.get(0)).lexema;
+           String d2 = ((Nodo)dimNode.hijos.get(1)).lexema;
+           
+           emit("array " + idStr + ", " + d1 + ", " + d2);
+
+           Nodo n = new Nodo("decl_global_array");
+           n.addHijo(new Nodo("world"));
+           n.addHijo((Nodo)d);
+           RESULT = n;
+       :}
     | WORLD decl_arreglo:d ASSIGN arreglo_init:init ENDL
       {:
           Nodo n = new Nodo("decl_global_array_init");
@@ -1224,6 +1235,9 @@ creacion_arreglo ::=
             int d2 = Integer.parseInt(((Nodo)dimNode.hijos.get(1)).lexema);
             
             declareArr(alc, tipo, idStr, d1, d2, idleft, idright);
+
+            // EMITIR C3D PARA ARREGLO
+            emit("array " + idStr + ", " + d1 + ", " + d2);
             
             Nodo n = new Nodo("creacion_arreglo");
             n.addHijo((Nodo)a);
@@ -1246,6 +1260,9 @@ creacion_arreglo ::=
             int d2 = Integer.parseInt(((Nodo)dimNode.hijos.get(1)).lexema);
             
             declareArr(alc, tipo, idStr, d1, d2, idleft, idright);
+
+            // EMITIR C3D PARA ARREGLO
+            emit("array " + idStr + ", " + d1 + ", " + d2);
             
             Nodo n = new Nodo("creacion_arreglo_init");
             n.addHijo((Nodo)a);
@@ -1415,8 +1432,24 @@ expresion ::= expr_logica:e {: RESULT = e; :}
 expr_aritm ::= expr_aritm:e1 PLUS term:e2
         {:
             String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "+", e1left, e1right);
+            
+            String op = "+";
+            if ("float".equals(t)) {
+                op = "+f";
+                if ("int".equals(((Nodo)e1).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)e1).getDir());
+                     ((Nodo)e1).setDir(c);
+                }
+                if ("int".equals(((Nodo)e2).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)e2).getDir());
+                     ((Nodo)e2).setDir(c);
+                }
+            }
+            
             String temp = newTemp();
-            emit(temp + " = " + ((Nodo)e1).getDir() + " + " + ((Nodo)e2).getDir());
+            emit(temp + " = " + ((Nodo)e1).getDir() + " " + op + " " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("+");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
@@ -1427,8 +1460,24 @@ expr_aritm ::= expr_aritm:e1 PLUS term:e2
     | expr_aritm:e1 MINUS term:e2
         {:
             String t = checkArithmetic(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), "-", e1left, e1right);
+
+            String op = "-";
+            if ("float".equals(t)) {
+                op = "-f";
+                if ("int".equals(((Nodo)e1).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)e1).getDir());
+                     ((Nodo)e1).setDir(c);
+                }
+                if ("int".equals(((Nodo)e2).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)e2).getDir());
+                     ((Nodo)e2).setDir(c);
+                }
+            }
+
             String temp = newTemp();
-            emit(temp + " = " + ((Nodo)e1).getDir() + " - " + ((Nodo)e2).getDir());
+            emit(temp + " = " + ((Nodo)e1).getDir() + " " + op + " " + ((Nodo)e2).getDir());
             Nodo n = new Nodo("-");
             n.addHijo((Nodo)e1);
             n.addHijo((Nodo)e2);
@@ -1443,8 +1492,24 @@ expr_aritm ::= expr_aritm:e1 PLUS term:e2
 term ::= term:t1 TIMES power:t2
         {:
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "*", t1left, t1right);
+
+            String op = "*";
+            if ("float".equals(t)) {
+                op = "*f";
+                if ("int".equals(((Nodo)t1).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)t1).getDir());
+                     ((Nodo)t1).setDir(c);
+                }
+                if ("int".equals(((Nodo)t2).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)t2).getDir());
+                     ((Nodo)t2).setDir(c);
+                }
+            }
+
             String temp = newTemp();
-            emit(temp + " = " + ((Nodo)t1).getDir() + " * " + ((Nodo)t2).getDir());
+            emit(temp + " = " + ((Nodo)t1).getDir() + " " + op + " " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("*");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);
@@ -1455,8 +1520,24 @@ term ::= term:t1 TIMES power:t2
     | term:t1 DIV power:t2
         {:
             String t = checkArithmetic(((Nodo)t1).getTipo(), ((Nodo)t2).getTipo(), "/", t1left, t1right);
+
+            String op = "/";
+            if ("float".equals(t)) {
+                op = "/f";
+                if ("int".equals(((Nodo)t1).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)t1).getDir());
+                     ((Nodo)t1).setDir(c);
+                }
+                if ("int".equals(((Nodo)t2).getTipo())) {
+                     String c = newTemp();
+                     emit(c + " = (float) " + ((Nodo)t2).getDir());
+                     ((Nodo)t2).setDir(c);
+                }
+            }
+
             String temp = newTemp();
-            emit(temp + " = " + ((Nodo)t1).getDir() + " / " + ((Nodo)t2).getDir());
+            emit(temp + " = " + ((Nodo)t1).getDir() + " " + op + " " + ((Nodo)t2).getDir());
             Nodo n = new Nodo("/");
             n.addHijo((Nodo)t1);
             n.addHijo((Nodo)t2);

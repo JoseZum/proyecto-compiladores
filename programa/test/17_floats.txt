@@ -1,0 +1,37 @@
+| Test: Operaciones Flotantes |
+
+coal navidad ¿? ¡
+    | Declaraciones |
+    world float f1_
+    world float f2_
+    world float res_
+
+    | Asignaciones |
+    f1_ = 3.5 endl
+    f2_ = 2.0 endl
+
+    | Suma Float |
+    res_ = f1_ + f2_ endl
+    show "3.5 + 2.0 = " endl
+    show ¿res_? endl
+    
+    | Resta Float |
+    res_ = f1_ - f2_ endl
+    show "3.5 - 2.0 = " endl
+    show ¿res_? endl
+
+    | Multiplicacion Float |
+    res_ = f1_ * f2_ endl
+    show "3.5 * 2.0 = " endl
+    show ¿res_? endl
+
+    | Division Float |
+    res_ = f1_ / f2_ endl
+    show "3.5 / 2.0 = " endl
+    show ¿res_? endl
+
+    | Casting Implicito (Int + Float) |
+    res_ = 10 + 5.5 endl
+    show "10 + 5.5 = " endl
+    show ¿res_? endl
+!
