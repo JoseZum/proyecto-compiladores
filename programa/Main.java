@@ -5,13 +5,15 @@ import java_cup.runtime.*;
 /**
  * compilador - analisis lexico y sintactico
  *
- * programa main para ejectar las primeras dos fases del compilador, el analisis lexico y el
+ * programa main para ejectar las primeras dos fases del compilador, el analisis
+ * lexico y el
  * sintactico
  */
 public class Main {
 
     /**
      * principal para coordinar la compilacion del archivo
+     * 
      * @param args argumento de linea, se espera el nombre del archivo fuente
      */
     public static void main(String[] args) {
@@ -31,14 +33,14 @@ public class Main {
             System.out.println("Archivo fuente: " + archivo);
             System.out.println();
 
-            //                      ANALISIS LEXICO 
+            // ANALISIS LEXICO
             System.out.println("----ANAELISIS LEXICO----");
             System.out.println("-".repeat(60));
-            //ejecuta el léxico y muestra tokens ademas de crear el archivo con los tokens
+            // ejecuta el léxico y muestra tokens ademas de crear el archivo con los tokens
             ejecutarAnalisisLexico(archivo);
             System.out.println();
 
-            //                      ANaLISIS SINTACTICO 
+            // ANaLISIS SINTACTICO
             System.out.println("----ANALISIS SINTACTICO----");
             System.out.println("-".repeat(60));
             // Ejecuta el sintactico, imprime el arbol sintactico y tablas de simbolos
@@ -59,7 +61,6 @@ public class Main {
         }
     }
 
-    
     private static void ejecutarAnalisisLexico(String archivo) throws Exception {
         // funcion para ejecutar el analisis lexico
         PrintWriter fileWriter = new PrintWriter(new FileWriter("tokens_output.txt"));
@@ -68,7 +69,7 @@ public class Main {
 
         // encabezado
         String header = String.format("%-6s %-20s %-10s %-10s %s",
-            "NUM", "TOKEN", "LINEA", "COLUMNA", "LEXEMA");
+                "NUM", "TOKEN", "LINEA", "COLUMNA", "LEXEMA");
         String separator = "-".repeat(70);
 
         System.out.println(header);
@@ -79,19 +80,20 @@ public class Main {
         fileWriter.println(separator);
 
         Symbol token;
-        int tokenCount = 0; //cienta la cantidad de tokens que hay
+        int tokenCount = 0; // cienta la cantidad de tokens que hay
 
         // ciclo para obtener todos los tokens
         while (true) {
             token = lexer.next_token();
-            if (token.sym == sym.EOF) break;
+            if (token.sym == sym.EOF)
+                break;
 
             tokenCount++;
-            String tokenName = getTokenName(token.sym);//nomrbe del token
-            String lexeme = token.value != null ? token.value.toString() : "";//lexema
+            String tokenName = getTokenName(token.sym);// nomrbe del token
+            String lexeme = token.value != null ? token.value.toString() : "";// lexema
 
             String tokenLine = String.format("%-6d %-20s %-10d %-10d %s",
-                tokenCount, tokenName, token.left, token.right, lexeme);
+                    tokenCount, tokenName, token.left, token.right, lexeme);
 
             System.out.println(tokenLine);
             fileWriter.println(tokenLine);
@@ -108,22 +110,44 @@ public class Main {
         fileReader.close();
     }
 
-
     private static void ejecutarAnalisisSintactico(String archivo) throws Exception {
-        //funcion para ejecutar el analisis sintactico
+        // funcion para ejecutar el analisis sintactico
         FileReader fileReader = new FileReader(archivo);
         Lexer lexer = new Lexer(fileReader);
         parser parser = new parser(lexer);
 
-        Symbol result = parser.parse(); //ejecuta el metodo parse para iniciar el analisis sintactico
-        
+        Symbol result = parser.parse(); // ejecuta el metodo parse para iniciar el analisis sintactico
+
         // --- GENERACIÓN DE MIPS ---
         String c3d = parser.getCod3D();
         if (c3d != null && !c3d.isEmpty()) {
+
+            // --- GUARDAR C3D ---
+            File archivoInput = new File(archivo);
+            String parentDir = archivoInput.getParent(); // Directorio del archivo original
+            String fileName = archivoInput.getName(); // Nombre del archivo (ej: test.txt)
+
+            // Quitar extension original
+            String nameWithoutExt = fileName;
+            int dotIndex = fileName.lastIndexOf('.');
+            if (dotIndex > 0) {
+                nameWithoutExt = fileName.substring(0, dotIndex);
+            }
+
+            // Construir nombre C3D: C3D_nombre.txt
+            String nombreC3D = "C3D_" + nameWithoutExt + ".txt";
+            // Si hay directorio padre, usarlo, sino usar solo el nombre
+            File archivoOutputC3D = (parentDir != null) ? new File(parentDir, nombreC3D) : new File(nombreC3D);
+
+            try (PrintWriter outC3D = new PrintWriter(new FileWriter(archivoOutputC3D))) {
+                outC3D.println(c3d);
+            }
+            System.out.println("Código C3D guardado en: " + archivoOutputC3D.getPath());
+
             System.out.println("Generando código MIPS...");
             traductor trad = new traductor(c3d);
             String mipsCode = trad.traducir();
-            
+
             // Determinar nombre del archivo .asm
             String nombreAsm = archivo.substring(0, archivo.lastIndexOf('.')) + ".asm";
             try (PrintWriter out = new PrintWriter(new FileWriter(nombreAsm))) {
@@ -135,9 +159,8 @@ public class Main {
         fileReader.close();
     }
 
-   
     private static String getTokenName(int symCode) {
-        //funcion para obtener el nombre del token a partir de su codigo
+        // funcion para obtener el nombre del token a partir de su codigo
         try {
             java.lang.reflect.Field[] fields = sym.class.getDeclaredFields();
             for (java.lang.reflect.Field field : fields) {
@@ -149,7 +172,7 @@ public class Main {
                 }
             }
         } catch (Exception e) {
-            //fallo y retorna el error
+            // fallo y retorna el error
         }
         return "SYM_" + symCode;
     }
