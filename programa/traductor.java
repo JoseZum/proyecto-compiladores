@@ -122,6 +122,7 @@ public class traductor {
      */
     private void generarDataSection() {
         mips.append(".data\n");
+        mips.append("    _input_buffer: .space 256\n");
         mips.append("    newline: .asciiz \"\\n\"\n");
 
         mips.append("    # --- Strings Literales ---\n");
@@ -185,7 +186,28 @@ public class traductor {
 
         mips.append("readInt:\n    li $v0, 5\n    syscall\n    jr $ra\n.end readInt\n\n");
         mips.append("readFloat:\n    li $v0, 6\n    syscall\n    jr $ra\n.end readFloat\n\n");
-        mips.append("readString:\n    li $v0, 8\n    syscall\n    jr $ra\n.end readString\n\n");
+        mips.append("readString:\n");
+        mips.append("    li $v0, 8\n"); // syscall read_string
+        mips.append("    la $a0, _input_buffer\n");
+        mips.append("    li $a1, 255\n");
+        mips.append("    syscall\n");
+        mips.append("    # Allocate heap memory for string\n");
+        mips.append("    li $v0, 9\n"); // sbrk
+        mips.append("    li $a0, 256\n"); // size
+        mips.append("    syscall\n");
+        mips.append("    move $t3, $v0\n"); // $t3 = dest ptr (start)
+        mips.append("    la $t1, _input_buffer\n"); // $t1 = source ptr
+        mips.append("_copy_loop:\n");
+        mips.append("    lb $t2, ($t1)\n");
+        mips.append("    sb $t2, ($t3)\n");
+        mips.append("    beqz $t2, _copy_end\n");
+        mips.append("    addi $t1, $t1, 1\n");
+        mips.append("    addi $t3, $t3, 1\n");
+        mips.append("    j _copy_loop\n");
+        mips.append("_copy_end:\n");
+        mips.append("    # $v0 already has the start address from sbrk\n");
+        mips.append("    jr $ra\n");
+        mips.append(".end readString\n\n");
         mips.append("readChar:\n    li $v0, 12\n    syscall\n    jr $ra\n.end readChar\n\n");
 
         mips.append("pow:\n");
@@ -596,9 +618,11 @@ public class traductor {
 
     private void traducirReadString(String var) {
         StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
-        // Para strings es más complejo (buffer), pero dejaremos el placeholder
-        currentBuffer.append("    # Leer String (Not fully supported): ").append(var).append("\n");
+        currentBuffer.append("    # Leer String: ").append(var).append("\n");
         currentBuffer.append("    jal readString\n");
+        currentBuffer.append("    sw $v0, v_").append(var).append("\n");
+        // Asegurarse de que la variable exista en la tabla
+        ensureVariableExists(var);
     }
 
     private void traducirGetStack(String args) {

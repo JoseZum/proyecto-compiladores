@@ -97,5 +97,12 @@ coal navidad ¿ ? ¡
     show ¿ "Outer val (5):" ? endl
     show ¿ val ? endl
     
+    show ¿ "--- TESTING READ STRING ---" ? endl
+    local string nombre = "Placeholder" endl
+    show ¿ "Ingrese un nombre:" ? endl
+    get ¿ nombre ? endl
+    show ¿ "Hola:" ? endl
+    show ¿ nombre ? endl
+
     show ¿ "--- ALL TESTS COMPLETED ---" ? endl
 !

@@ -466,9 +466,40 @@ NUM    TOKEN                LINEA      COLUMNA    LEXEMA
 462    ENDL                 98         18         endl
 463    SHOW                 100        5          show
 464    PARENTHESIS_OPEN     100        10         ¿
-465    STRING_LIT           100        12         "--- ALL TESTS COMPLETED ---"
+465    STRING_LIT           100        12         "--- TESTING READ STRING ---"
 466    PARENTHESIS_CLOSE    100        42         ?
 467    ENDL                 100        44         endl
-468    BLOCK_CLOSE          101        1          !
+468    LOCAL                101        5          local
+469    STRING               101        11         string
+470    ID                   101        18         nombre
+471    ASSIGN               101        25         =
+472    STRING_LIT           101        27         "Placeholder"
+473    ENDL                 101        41         endl
+474    SHOW                 102        5          show
+475    PARENTHESIS_OPEN     102        10         ¿
+476    STRING_LIT           102        12         "Ingrese un nombre:"
+477    PARENTHESIS_CLOSE    102        33         ?
+478    ENDL                 102        35         endl
+479    GET                  103        5          get
+480    PARENTHESIS_OPEN     103        9          ¿
+481    ID                   103        11         nombre
+482    PARENTHESIS_CLOSE    103        18         ?
+483    ENDL                 103        20         endl
+484    SHOW                 104        5          show
+485    PARENTHESIS_OPEN     104        10         ¿
+486    STRING_LIT           104        12         "Hola:"
+487    PARENTHESIS_CLOSE    104        20         ?
+488    ENDL                 104        22         endl
+489    SHOW                 105        5          show
+490    PARENTHESIS_OPEN     105        10         ¿
+491    ID                   105        12         nombre
+492    PARENTHESIS_CLOSE    105        19         ?
+493    ENDL                 105        21         endl
+494    SHOW                 107        5          show
+495    PARENTHESIS_OPEN     107        10         ¿
+496    STRING_LIT           107        12         "--- ALL TESTS COMPLETED ---"
+497    PARENTHESIS_CLOSE    107        42         ?
+498    ENDL                 107        44         endl
+499    BLOCK_CLOSE          108        1          !
 ----------------------------------------------------------------------
-Total de tokens: 468
+Total de tokens: 499

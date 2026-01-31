@@ -1,32 +1,37 @@
 # --- CÓDIGO MIPS GENERADO ---
 
 .data
+    _input_buffer: .space 256
     newline: .asciiz "\n"
     # --- Strings Literales ---
     str21: .asciiz "--- TESTING SCOPE ---"
+    str25: .asciiz "Placeholder"
     str14: .asciiz "For Loop 0 to 2:"
-    str2: .asciiz "--- TESTING GLOBALS ---"
-    str22: .asciiz "Inner val (10):"
-    str9: .asciiz "X es mayor que 15 (Correcto)"
     str5: .asciiz "Global Bool (true/1):"
     str17: .asciiz "Factorial 5 = 120:"
     str16: .asciiz "Suma 10+20 = 30:"
     str18: .asciiz "--- TESTING ARRAYS ---"
-    str3: .asciiz "Global X (10):"
-    str11: .asciiz "Else (Incorrecto)"
-    str24: .asciiz "--- ALL TESTS COMPLETED ---"
-    str4: .asciiz "Global F (3.14):"
+    str28: .asciiz "--- ALL TESTS COMPLETED ---"
     str12: .asciiz "--- TESTING LOOPS ---"
     str13: .asciiz "Loop 0 to 4:"
     str19: .asciiz "Arreglo[0][0] (100):"
-    str1: .asciiz "Hola Mundo"
     str6: .asciiz "--- TESTING ARITHMETIC ---"
     str20: .asciiz "Arreglo[1][1] (400):"
+    str15: .asciiz "--- TESTING FUNCTIONS ---"
+    str2: .asciiz "--- TESTING GLOBALS ---"
+    str22: .asciiz "Inner val (10):"
+    str9: .asciiz "X es mayor que 15 (Correcto)"
+    str26: .asciiz "Ingrese un nombre:"
+    str3: .asciiz "Global X (10):"
+    str11: .asciiz "Else (Incorrecto)"
+    str4: .asciiz "Global F (3.14):"
+    str1: .asciiz "Hola Mundo"
+    str27: .asciiz "Hola:"
     str23: .asciiz "Outer val (5):"
     str7: .asciiz "10 + 5 * 2 = 20:"
     str10: .asciiz "X es 20 (No debe salir)"
+    str24: .asciiz "--- TESTING READ STRING ---"
     str8: .asciiz "--- TESTING CONDITIONALS (DECIDE) ---"
-    str15: .asciiz "--- TESTING FUNCTIONS ---"
     .align 2
     # --- Arrays ---
     v_arreglo: .space 24
@@ -59,6 +64,7 @@
     v_t8: .word 0
     v_t9: .word 0
     v_factorial: .word 0
+    v_nombre: .word 0
     v_global_flag: .word 0
     v_global_s: .word 0
     v_a: .word 0
@@ -571,8 +577,34 @@ L10:
     jal showInt
     la $a0, newline
     jal showString
-    # Imprimir String: "--- ALL TESTS COMPLETED ---"
+    # Imprimir String: "--- TESTING READ STRING ---"
     la $a0, str24
+    jal showString
+    la $a0, newline
+    jal showString
+    # Asignación literal: nombre = "Placeholder"
+    la $t0, str25
+    sw $t0, v_nombre
+    # Imprimir String: "Ingrese un nombre:"
+    la $a0, str26
+    jal showString
+    la $a0, newline
+    jal showString
+    # Leer String: nombre
+    jal readString
+    sw $v0, v_nombre
+    # Imprimir String: "Hola:"
+    la $a0, str27
+    jal showString
+    la $a0, newline
+    jal showString
+    # Imprimir String: nombre
+    lw $a0, v_nombre
+    jal showString
+    la $a0, newline
+    jal showString
+    # Imprimir String: "--- ALL TESTS COMPLETED ---"
+    la $a0, str28
     jal showString
     la $a0, newline
     jal showString
@@ -705,7 +737,24 @@ readFloat:
 
 readString:
     li $v0, 8
+    la $a0, _input_buffer
+    li $a1, 255
     syscall
+    # Allocate heap memory for string
+    li $v0, 9
+    li $a0, 256
+    syscall
+    move $t3, $v0
+    la $t1, _input_buffer
+_copy_loop:
+    lb $t2, ($t1)
+    sb $t2, ($t3)
+    beqz $t2, _copy_end
+    addi $t1, $t1, 1
+    addi $t3, $t3, 1
+    j _copy_loop
+_copy_end:
+    # $v0 already has the start address from sbrk
     jr $ra
 .end readString
 
