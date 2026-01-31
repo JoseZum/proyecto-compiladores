@@ -1,0 +1,101 @@
+| Comentarios de una linea
+
+world int global_x = 10 endl
+world float global_f = 3.14 endl
+world boolean global_flag = true endl
+world char global_c = 'A' endl
+world string global_s = "Hola Mundo" endl
+world int arreglo[2][2] endl
+
+| Declaracion de funcion
+gift int suma ¿ int a, int b ? ¡
+    return a + b endl
+!
+
+gift int factorial ¿ int n ? ¡
+    decide of
+        n == 0 -> ¡ return 1 endl !
+    else -> ¡
+        return n * factorial ¿ n - 1 ? endl
+    !
+    end decide endl
+!
+
+coal navidad ¿ ? ¡
+    local int x = 0 endl
+    local int y = 20 endl
+    
+    show ¿ "--- TESTING GLOBALS ---" ? endl
+    show ¿ "Global X (10):" ? endl
+    show ¿ global_x ? endl
+    show ¿ "Global F (3.14):" ? endl
+    show ¿ global_f ? endl
+    show ¿ "Global Bool (true/1):" ? endl
+    show ¿ global_flag ? endl
+    show ¿ global_s ? endl
+
+    show ¿ "--- TESTING ARITHMETIC ---" ? endl
+    x = 10 + 5 * 2 endl
+    show ¿ "10 + 5 * 2 = 20:" ? endl
+    show ¿ x ? endl
+    
+    show ¿ "--- TESTING CONDITIONALS (DECIDE) ---" ? endl
+    decide of
+        x > 15 -> ¡ show ¿ "X es mayor que 15 (Correcto)" ? endl !
+        x == 20 -> ¡ show ¿ "X es 20 (No debe salir)" ? endl !
+    else -> ¡
+        show ¿ "Else (Incorrecto)" ? endl
+    !
+    end decide endl
+
+    show ¿ "--- TESTING LOOPS ---" ? endl
+    show ¿ "Loop 0 to 4:" ? endl
+    local int i = 0 endl
+    loop
+        show ¿ i ? endl
+        i = i + 1 endl
+        exit when ¿ i == 5 ? endl
+    end loop endl
+
+    show ¿ "For Loop 0 to 2:" ? endl
+    for ¿ local int j = 0 endl j < 3 endl ++j ? ¡
+        show ¿ j ? endl
+    ! endl
+
+    show ¿ "--- TESTING FUNCTIONS ---" ? endl
+    local int s = suma ¿ 10, 20 ? endl
+    show ¿ "Suma 10+20 = 30:" ? endl
+    show ¿ s ? endl
+    
+    local int f = factorial ¿ 5 ? endl
+    show ¿ "Factorial 5 = 120:" ? endl
+    show ¿ f ? endl
+
+    show ¿ "--- TESTING ARRAYS ---" ? endl
+    | Asignacion manual
+
+    local int arreglo[2][3] endl
+    arreglo[0][0] = 100 endl
+    arreglo[0][1] = 200 endl
+    arreglo[1][0] = 300 endl
+    arreglo[1][1] = 400 endl
+    
+    show ¿ "Arreglo[0][0] (100):" ? endl
+    show ¿ arreglo[0][0] ? endl
+    show ¿ "Arreglo[1][1] (400):" ? endl
+    show ¿ arreglo[1][1] ? endl
+
+    show ¿ "--- TESTING SCOPE ---" ? endl
+    local int val = 5 endl
+    decide of
+        val > 0 -> ¡
+            local int val = 10 endl
+            show ¿ "Inner val (10):" ? endl
+            show ¿ val ? endl
+        !
+    end decide endl
+    show ¿ "Outer val (5):" ? endl
+    show ¿ val ? endl
+    
+    show ¿ "--- ALL TESTS COMPLETED ---" ? endl
+!

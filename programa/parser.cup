@@ -365,6 +365,8 @@ parser code {:
     // Pila de etiquetas para estructuras de control anidadas
     Deque<String> loopStartLabels = new ArrayDeque<>();
     Deque<String> loopEndLabels = new ArrayDeque<>();
+    Deque<String> loopIncLabels = new ArrayDeque<>();
+    Deque<String> loopBodyLabels = new ArrayDeque<>();
 
     // Genera un nuevo temporal único
     String newTemp() {
@@ -393,6 +395,29 @@ parser code {:
         addError("[SINTACTICO] Error de sintaxis en línea " + s.left + " cerca de: " + terminalToString(s));
     }
     //“cerca de” = el token con el que el parser se dio cuenta de que ya no puede continuar.
+
+    // Recolectar nombres de parámetros recursivamente
+    void collectParamNames(Nodo node, List<String> list) {
+        if (node == null) return;
+        // Access 'lexema' field directly as getNombre() does not exist
+        if ("params_vacios".equals(node.lexema)) return;
+        
+        if ("params".equals(node.lexema)) {
+            for (Object child : node.hijos) {
+                collectParamNames((Nodo)child, list);
+            }
+        } else if ("param".equals(node.lexema)) {
+            // param -> tipo id
+            // hijos: [tipo, id]
+            if (node.hijos.size() >= 2) {
+                Nodo idNode = (Nodo)node.hijos.get(1);
+                // Access 'lexema' directly
+                if (idNode.lexema != null) {
+                    list.add(idNode.lexema);
+                }
+            }
+        }
+    }
 
     public void report_error(String message, Object info) {
         addError("[SINTACTICO] " + message);
@@ -614,8 +639,8 @@ literal ::=
             INT_LIT:i {: Nodo n=new Nodo(i); n.setTipo("int"); n.setDir(i.toString()); RESULT=n; :}
         | FLOAT_LIT:f {: Nodo n=new Nodo(f); n.setTipo("float"); n.setDir(f.toString()); RESULT=n; :}
         | BOOLEAN_LIT:b {: Nodo n=new Nodo(b); n.setTipo("boolean"); n.setDir(b.toString()); RESULT=n; :}
-        | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); n.setDir("'" + c.toString() + "'"); RESULT=n; :}
-        | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); n.setDir("\"" + s.toString() + "\""); RESULT=n; :}
+        | CHAR_LIT:c {: Nodo n=new Nodo(c); n.setTipo("char"); n.setDir(c.toString()); RESULT=n; :}
+        | STRING_LIT:s {: Nodo n=new Nodo(s); n.setTipo("string"); n.setDir(s.toString()); RESULT=n; :}
         ;
 
 
@@ -716,7 +741,17 @@ funcion ::=
           emit("# FUNC " + idStr);
           emit(idStr + ":");
       :}
-      PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE bloque:b
+      PARENTHESIS_OPEN params_opt:po PARENTHESIS_CLOSE 
+      {:
+          List<String> pNames = new ArrayList<>();
+          collectParamNames((Nodo)po, pNames);
+          int size = pNames.size();
+          for(int i=0; i<size; i++) {
+              int offset = 4 + (size - 1 - i) * 4;
+              emit("get_stack " + pNames.get(i) + ", " + offset);
+          }
+      :}
+      bloque:b
       {:
           String idStr = id.toString();
           emit("# END FUNC " + idStr);
@@ -1046,27 +1081,44 @@ for_start ::=
           // Generar etiquetas para el for y guardarlas
           String lblCond = newLabel();
           String lblEnd = newLabel();
+          String lblInc = newLabel();
+          String lblBody = newLabel();
+          
           loopStartLabels.push(lblCond);
           loopEndLabels.push(lblEnd);
+          loopIncLabels.push(lblInc);
+          loopBodyLabels.push(lblBody);
           emit("# FOR inicio");
       :}
     ;
 
 for ::=
-      for_start PARENTHESIS_OPEN for_init:fi ENDL expr_logica:cond ENDL expresion:e PARENTHESIS_CLOSE bloque:b ENDL
-      {:
-          // Recuperar etiquetas del for
-          String lblCond = loopStartLabels.pop();
-          String lblEnd = loopEndLabels.pop();
-
-          // Nota: La inicialización ya se emitió en for_init
-          // Emitir etiqueta de condición (el código de condición ya se emitió)
-          emit(lblCond + ":");
-          // Evaluar condición y saltar si es falsa
+      for_start PARENTHESIS_OPEN for_init:fi ENDL 
+      {: emit(loopStartLabels.peek() + ":"); :}
+      expr_logica:cond ENDL 
+      {: 
+          String lblEnd = loopEndLabels.peek();
+          String lblBody = loopBodyLabels.peek();
+          String lblInc = loopIncLabels.peek();
           emit("ifFalse " + ((Nodo)cond).getDir() + " goto " + lblEnd);
-          // El bloque ya se ejecutó (las instrucciones ya están)
-          // Incremento ya se evaluó en expresion:e
+          emit("goto " + lblBody);
+          emit(lblInc + ":");
+      :}
+      expresion:e 
+      {:
+          String lblCond = loopStartLabels.peek();
+          String lblBody = loopBodyLabels.peek();
           emit("goto " + lblCond);
+          emit(lblBody + ":");
+      :}
+      PARENTHESIS_CLOSE bloque:b ENDL
+      {:
+          String lblInc = loopIncLabels.pop();
+          String lblEnd = loopEndLabels.pop();
+          loopStartLabels.pop();
+          loopBodyLabels.pop();
+
+          emit("goto " + lblInc);
           emit(lblEnd + ":");
           emit("# FOR fin");
 
@@ -1083,6 +1135,8 @@ for ::=
           addError("[PANIC] Estructura FOR inválida, sincronizado en ENDL.");
           loopStartLabels.pop();
           loopEndLabels.pop();
+          loopIncLabels.pop();
+          loopBodyLabels.pop();
           popScope();
           RESULT=new Nodo("for_error");
       :}

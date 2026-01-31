@@ -42,9 +42,6 @@
 .globl main
 
 main:
-    # Salto al inicio del bloque principal (navidad)
-    j navidad
-
     # MAIN navidad
 navidad:
     li $t1, 0
@@ -167,7 +164,7 @@ navidad:
     add $t3, $t3, $t1
     li $t0, 60
     sw $t0, ($t3)
-    # Imprimir String: ""Matriz[0][0] = ""
+    # Imprimir String: "Matriz[0][0] = "
     la $a0, str1
     jal showString
     la $a0, newline
@@ -187,7 +184,7 @@ navidad:
     jal showInt
     la $a0, newline
     jal showString
-    # Imprimir String: ""Matriz[0][1] = ""
+    # Imprimir String: "Matriz[0][1] = "
     la $a0, str2
     jal showString
     la $a0, newline
@@ -207,7 +204,7 @@ navidad:
     jal showInt
     la $a0, newline
     jal showString
-    # Imprimir String: ""Matriz[1][2] = ""
+    # Imprimir String: "Matriz[1][2] = "
     la $a0, str3
     jal showString
     la $a0, newline
@@ -255,7 +252,7 @@ navidad:
     # Asignación simple: suma = t12
     lw $t0, v_t12
     sw $t0, v_suma
-    # Imprimir String: ""10 + 50 = ""
+    # Imprimir String: "10 + 50 = "
     la $a0, str4
     jal showString
     la $a0, newline
@@ -300,7 +297,7 @@ navidad:
     add $t3, $t3, $t1
     lw $t0, v_t15
     sw $t0, ($t3)
-    # Imprimir String: ""Matriz[0][0] * 2 = ""
+    # Imprimir String: "Matriz[0][0] * 2 = "
     la $a0, str5
     jal showString
     la $a0, newline
@@ -326,7 +323,7 @@ navidad:
     # Asignación simple: j = 2
     li $t0, 2
     sw $t0, v_j
-    # Imprimir String: ""Matriz[i][j] donde i=1, j=2: ""
+    # Imprimir String: "Matriz[i][j] donde i=1, j=2: "
     la $a0, str6
     jal showString
     la $a0, newline
@@ -366,7 +363,7 @@ navidad:
     add $t3, $t3, $t1
     li $t0, 99
     sw $t0, ($t3)
-    # Imprimir String: ""Nuevo valor de Matriz[1][2] = ""
+    # Imprimir String: "Nuevo valor de Matriz[1][2] = "
     la $a0, str7
     jal showString
     la $a0, newline

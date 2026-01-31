@@ -18,6 +18,7 @@ public class traductor {
     private StringBuilder mainMips;
     private StringBuilder funcMips;
     private boolean inFunction = false;
+    private boolean pendingPrologue = false;
 
     public traductor(String c3d) {
         this.c3d = c3d;
@@ -153,8 +154,9 @@ public class traductor {
 
         mips.append(".globl main\n\n");
         mips.append("main:\n");
-        mips.append("    # Salto al inicio del bloque principal (navidad)\n");
-        mips.append("    j navidad\n\n");
+        // Removed explicit jump to navidad to allow global initialization instructions
+        // to run first
+        // Flow will fall through to navidad: label naturally
 
         String[] lineas = c3d.split("\n");
         for (String linea : lineas) {
@@ -215,9 +217,7 @@ public class traductor {
         // MANEJO DE FUNCIONES (Basado en comentarios del C3D)
         if (linea.startsWith("# FUNC ")) {
             currentBuffer.append("    ").append(linea).append("\n");
-            currentBuffer.append("    # Reserva de Frame y guardado de $ra\n");
-            currentBuffer.append("    subu $sp, $sp, 4\n");
-            currentBuffer.append("    sw $ra, ($sp)\n");
+            pendingPrologue = true; // Fix: Postpone prologue until after label
             return;
         }
 
@@ -227,15 +227,26 @@ public class traductor {
             if (linea.startsWith("# END FUNC")) {
                 inFunction = false;
             }
+            // Fix: Add exit system call at end of main to prevent fallthrough
+            if (linea.startsWith("# END MAIN")) {
+                currentBuffer.append("    li $v0, 10\n");
+                currentBuffer.append("    syscall\n");
+            }
             return;
         }
 
         // 1. ETIQUETAS (L1:, func:)
         if (linea.endsWith(":")) {
-            // FIX: Ya no ignoramos 'navidad:', permitimos todo excepto 'main:' manual si
-            // existiera
             if (!linea.equals("main:")) {
                 currentBuffer.append(linea).append("\n");
+
+                // Fix: Emit prologue AFTER the label
+                if (pendingPrologue && inFunction) {
+                    currentBuffer.append("    # Reserva de Frame y guardado de $ra\n");
+                    currentBuffer.append("    subu $sp, $sp, 4\n");
+                    currentBuffer.append("    sw $ra, ($sp)\n");
+                    pendingPrologue = false;
+                }
             }
             return;
         }
@@ -295,6 +306,9 @@ public class traductor {
             case "array":
                 // No hace nada en runtime
                 break;
+            case "get_stack":
+                traducirGetStack(linea.substring(10).trim());
+                break;
             default:
                 // 3. ASIGNACIONES (t1 = a + b o t1 = call func)
                 if (linea.contains("=")) {
@@ -326,9 +340,18 @@ public class traductor {
             return;
         }
 
-        String[] partes = linea.split("=");
+        String[] partes = linea.split("=", 2);
         String res = partes[0].trim();
         String expr = partes[1].trim();
+
+        // Handle String literal assignment (e.g. s = "Hola Mundo")
+        if (expr.startsWith("\"") || expr.startsWith("'")) {
+            currentBuffer.append("    # Asignación literal: ").append(res).append(" = ").append(expr).append("\n");
+            cargarEnRegistro("$t0", expr);
+            currentBuffer.append("    sw $t0, v_").append(res).append("\n");
+            return;
+        }
+
         String[] tokens = expr.split("\\s+");
 
         if (tokens.length == 1) {
@@ -428,10 +451,10 @@ public class traductor {
                 case "<=":
                     currentBuffer.append("    sle $t2, $t0, $t1\n");
                     break;
-                case "AND":
+                case "and":
                     currentBuffer.append("    and $t2, $t0, $t1\n");
                     break;
-                case "OR":
+                case "or":
                     currentBuffer.append("    or $t2, $t0, $t1\n");
                     break;
                 case "^":
@@ -443,6 +466,16 @@ public class traductor {
                     break;
             }
             currentBuffer.append("    sw $t2, v_").append(res).append("\n");
+        } else if (tokens.length == 2) {
+            // Operadores unarios (ej: not)
+            String op = tokens[0];
+            String val = tokens[1];
+            if (op.equals("not")) {
+                currentBuffer.append("    # Operacion Not: ").append(linea).append("\n");
+                cargarEnRegistro("$t0", val);
+                currentBuffer.append("    seq $t0, $t0, $zero\n");
+                currentBuffer.append("    sw $t0, v_").append(res).append("\n");
+            }
         }
     }
 
@@ -562,6 +595,19 @@ public class traductor {
         currentBuffer.append("    jal readString\n");
     }
 
+    private void traducirGetStack(String args) {
+        // args: variable, offset
+        String[] parts = args.split(",");
+        String var = parts[0].trim();
+        String offset = parts[1].trim();
+
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Cargar parametro dsd pila: ").append(var).append(" <- ").append(offset)
+                .append("($sp)\n");
+        currentBuffer.append("    lw $t0, ").append(offset).append("($sp)\n");
+        currentBuffer.append("    sw $t0, v_").append(var).append("\n");
+    }
+
     private void traducirParam(String val) {
         StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         currentBuffer.append("    # Parámetro de función: ").append(val).append("\n");
@@ -624,6 +670,24 @@ public class traductor {
         StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         if (val.matches("-?\\d+")) {
             currentBuffer.append("    li ").append(reg).append(", ").append(val).append("\n");
+        } else if (val.equals("true")) {
+            currentBuffer.append("    li ").append(reg).append(", 1\n");
+        } else if (val.equals("false")) {
+            currentBuffer.append("    li ").append(reg).append(", 0\n");
+        } else if (val.startsWith("'")) {
+            // Char literal 'A'
+            char c = val.charAt(1);
+            currentBuffer.append("    li ").append(reg).append(", ").append((int) c).append("\n");
+        } else if (val.startsWith("\"")) {
+            // String literal "Hola" -> Load address
+            String content = extraerString(val);
+            String label = strings.get(content);
+            if (label != null) {
+                currentBuffer.append("    la ").append(reg).append(", ").append(label).append("\n");
+            } else {
+                // Fallback if string not found (shouldn't happen if preprocessed)
+                currentBuffer.append("    # Error: String literal not found in .data\n");
+            }
         } else {
             currentBuffer.append("    lw ").append(reg).append(", v_").append(val).append("\n");
         }

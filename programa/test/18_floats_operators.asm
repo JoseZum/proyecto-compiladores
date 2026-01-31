@@ -11,7 +11,9 @@
     str7: .asciiz "-1.5 + 2.0 = "
     str2: .asciiz "10.5 - 2.5 = "
     str4: .asciiz "10.5 / 2.5 = "
+    .align 2
     # --- Arrays ---
+    .align 2
     # --- Variables y Temporales ---
     v_t4: .word 0
     v_t5: .word 0
