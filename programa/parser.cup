@@ -419,6 +419,32 @@ parser code {:
         }
     }
 
+    // Obtener variables locales y parametros del scope actual y sus padres (dentro de la funcion)
+    List<String> getActiveLocals() {
+        List<String> vars = new ArrayList<>();
+        String scope = currentScope();
+        
+        // Recorrer scopes hacia arriba hasta llegar a world
+        while (scope != null && !"world".equals(scope)) {
+            HashMap<String, SymInfo> table = tablas.get(scope);
+            if (table != null) {
+                for (Map.Entry<String, SymInfo> entry : table.entrySet()) {
+                    SymInfo val = entry.getValue();
+                    // Salvar VAR (local) y PARAM
+                    if ("VAR".equals(val.kind) || "PARAM".equals(val.kind)) {
+                        // Evitar duplicados si hay shadowing (aunque el lenguaje quiza no lo permita, mejor prevenir)
+                        if (!vars.contains(entry.getKey())) {
+                            vars.add(entry.getKey());
+                        }
+                    }
+                }
+            }
+            // Subir al scope padre
+            scope = parentScope.get(scope);
+        }
+        return vars;
+    }
+
     public void report_error(String message, Object info) {
         addError("[SINTACTICO] " + message);
     }
@@ -1429,17 +1455,32 @@ llamada ::= ID:id PARENTHESIS_OPEN args:a PARENTHESIS_CLOSE
             checkCall(idStr, idleft, idright);
             String retType = getFuncReturnType(idStr);
 
-            // Generar C3D: emitir params y llamada
+            // Generar C3D: 
+            // 1. Guardar contexto (variables locales activas)
+            List<String> locals = getActiveLocals();
+            for (String var : locals) {
+                emit("save_local " + var);
+            }
+
+            // 2. Emitir params
             Nodo argsNode = (Nodo)a;
             int paramCount = 0;
+            // args: parametros hijos
             for (Nodo hijo : argsNode.hijos) {
                 if (!",".equals(hijo.lexema)) {
-                    emit("param " + hijo.getDir());
-                    paramCount++;
+                     emit("param " + hijo.getDir());
+                     paramCount++;
                 }
             }
+
+            // 3. Llamada
             String temp = newTemp();
             emit(temp + " = call " + idStr + ", " + paramCount);
+
+            // 4. Restaurar contexto (variables locales) en orden inverso
+            for (int i = locals.size() - 1; i >= 0; i--) {
+                emit("restore_local " + locals.get(i));
+            }
 
             Nodo n = new Nodo("llamada");
             Nodo nid = new Nodo(idStr);

@@ -309,6 +309,12 @@ public class traductor {
             case "get_stack":
                 traducirGetStack(linea.substring(10).trim());
                 break;
+            case "save_local":
+                traducirSaveLocal(linea.substring(11).trim());
+                break;
+            case "restore_local":
+                traducirRestoreLocal(linea.substring(14).trim());
+                break;
             default:
                 // 3. ASIGNACIONES (t1 = a + b o t1 = call func)
                 if (linea.contains("=")) {
@@ -614,6 +620,22 @@ public class traductor {
         cargarEnRegistro("$t0", val);
         currentBuffer.append("    subu $sp, $sp, 4\n");
         currentBuffer.append("    sw $t0, ($sp)\n");
+    }
+
+    private void traducirSaveLocal(String var) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Guardar local en pila: ").append(var).append("\n");
+        currentBuffer.append("    lw $t0, v_").append(var).append("\n");
+        currentBuffer.append("    subu $sp, $sp, 4\n");
+        currentBuffer.append("    sw $t0, ($sp)\n");
+    }
+
+    private void traducirRestoreLocal(String var) {
+        StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
+        currentBuffer.append("    # Restaurar local de pila: ").append(var).append("\n");
+        currentBuffer.append("    lw $t0, ($sp)\n");
+        currentBuffer.append("    addu $sp, $sp, 4\n");
+        currentBuffer.append("    sw $t0, v_").append(var).append("\n");
     }
 
     private void traducirCall(String linea) {

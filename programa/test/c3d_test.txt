@@ -1,6 +1,0 @@
-coal navidad ¿? ¡
-    local int x = 5 + 3 endl
-    local int y = x * 2 endl
-    local int z = y - 1 endl
-    show ¿z? endl
-!

@@ -33,6 +33,7 @@
     .align 2
     # --- Variables y Temporales ---
     v_get_stack: .word 0
+    v_restore_local: .word 0
     v_t10: .word 0
     v_t12: .word 0
     v_t11: .word 0
@@ -65,6 +66,7 @@
     v_L1: .word 0
     v_L2: .word 0
     v_f: .word 0
+    v_save_local: .word 0
     v_L3: .word 0
     v_L4: .word 0
     v_i: .word 0
@@ -301,6 +303,18 @@ L7:
     jal showString
     la $a0, newline
     jal showString
+    # Guardar local en pila: x
+    lw $t0, v_x
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
+    # Guardar local en pila: y
+    lw $t0, v_y
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
+    # Guardar local en pila: i
+    lw $t0, v_i
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
     # Parámetro de función: 10
     li $t0, 10
     subu $sp, $sp, 4
@@ -313,6 +327,18 @@ L7:
     jal suma
     addu $sp, $sp, 8 # Limpiar 2 params
     sw $v0, v_t13
+    # Restaurar local de pila: i
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_i
+    # Restaurar local de pila: y
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_y
+    # Restaurar local de pila: x
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_x
     # Asignación simple: s = t13
     lw $t0, v_t13
     sw $t0, v_s
@@ -326,6 +352,22 @@ L7:
     jal showInt
     la $a0, newline
     jal showString
+    # Guardar local en pila: s
+    lw $t0, v_s
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
+    # Guardar local en pila: x
+    lw $t0, v_x
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
+    # Guardar local en pila: y
+    lw $t0, v_y
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
+    # Guardar local en pila: i
+    lw $t0, v_i
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
     # Parámetro de función: 5
     li $t0, 5
     subu $sp, $sp, 4
@@ -334,6 +376,22 @@ L7:
     jal factorial
     addu $sp, $sp, 4 # Limpiar 1 params
     sw $v0, v_t14
+    # Restaurar local de pila: i
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_i
+    # Restaurar local de pila: y
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_y
+    # Restaurar local de pila: x
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_x
+    # Restaurar local de pila: s
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_s
     # Asignación simple: f = t14
     lw $t0, v_t14
     sw $t0, v_f
@@ -578,6 +636,10 @@ L1:
     li $t1, 1
     sub $t2, $t0, $t1
     sw $t2, v_t3
+    # Guardar local en pila: n
+    lw $t0, v_n
+    subu $sp, $sp, 4
+    sw $t0, ($sp)
     # Parámetro de función: t3
     lw $t0, v_t3
     subu $sp, $sp, 4
@@ -586,6 +648,10 @@ L1:
     jal factorial
     addu $sp, $sp, 4 # Limpiar 1 params
     sw $v0, v_t4
+    # Restaurar local de pila: n
+    lw $t0, ($sp)
+    addu $sp, $sp, 4
+    sw $t0, v_n
     # Operación: t5 = n * t4
     lw $t0, v_n
     lw $t1, v_t4
