@@ -1,0 +1,16 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 13: SCOPE ---" ? endl
+    
+    local int x = 10 endl
+    
+    decide of
+        true -> ¡
+            local int x = 20 endl | Shadowing
+            show ¿ "Inner x (20):" ? endl show ¿ x ? endl
+        !
+    end decide endl
+    
+    show ¿ "Outer x (10):" ? endl show ¿ x ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

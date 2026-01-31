@@ -1,0 +1,19 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 08: FOR ---" ? endl
+    
+    show ¿ "Loop 0 to 2:" ? endl
+    for ¿ local int j = 0 endl j < 3 endl ++j ? ¡
+        show ¿ j ? endl
+    ! endl
+    
+    show ¿ "Nested For:" ? endl
+    for ¿ local int i = 0 endl i < 2 endl ++i ? ¡
+        for ¿ local int k = 0 endl k < 2 endl ++k ? ¡
+            show ¿ "i,k:" ? endl 
+            show ¿ i ? endl 
+            show ¿ k ? endl
+        ! endl
+    ! endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

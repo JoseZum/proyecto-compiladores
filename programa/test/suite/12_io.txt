@@ -1,0 +1,33 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 12: I/O (Input/Output) ---" ? endl
+    
+    show ¿ "Outputs:" ? endl
+    show ¿ 12345 ? endl
+    show ¿ 3.14 ? endl
+    show ¿ 'C' ? endl
+    show ¿ true ? endl
+
+    show ¿ "--- INPUTS ---" ? endl
+    
+    local int i = 0 endl
+    show ¿ "Ingrese Entero:" ? endl
+    get ¿ i ? endl
+    show ¿ "Leido:" ? endl show ¿ i ? endl
+
+    local float f = 0.0 endl
+    show ¿ "Ingrese Float:" ? endl
+    get ¿ f ? endl
+    show ¿ "Leido:" ? endl show ¿ f ? endl
+
+    local char c = ' ' endl
+    show ¿ "Ingrese Char:" ? endl
+    get ¿ c ? endl
+    show ¿ "Leido:" ? endl show ¿ c ? endl
+
+    local string s = "" endl
+    show ¿ "Ingrese String:" ? endl
+    get ¿ s ? endl
+    show ¿ "Leido:" ? endl show ¿ s ? endl
+    
+    show ¿ "--- PASSED ---" ? endl
+!

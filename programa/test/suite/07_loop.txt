@@ -1,0 +1,15 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 07: LOOP ---" ? endl
+    
+    local int i = 0 endl
+    
+    loop
+        show ¿ i ? endl
+        ++i endl
+        exit when ¿ i == 5 ? endl
+    end loop endl
+    
+    show ¿ "Verify i = 5:" ? endl show ¿ i ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

@@ -1,0 +1,20 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 02: RELATIONAL ---" ? endl
+    
+    local int a = 5 endl
+    local int b = 10 endl
+    
+    show ¿ "5 < 10 (true):" ? endl show ¿ a < b ? endl
+    show ¿ "5 > 10 (false):" ? endl show ¿ a > b ? endl
+    show ¿ "5 == 5 (true):" ? endl show ¿ a == 5 ? endl
+    show ¿ "5 != 5 (false):" ? endl show ¿ a != 5 ? endl
+    show ¿ "5 <= 5 (true):" ? endl show ¿ a <= 5 ? endl
+    show ¿ "5 >= 10 (false):" ? endl show ¿ a >= b ? endl
+    
+    | Float comparison
+    local float f1 = 3.14 endl
+    local float f2 = 3.14159 endl
+    show ¿ "3.14 < 3.14159 (true):" ? endl show ¿ f1 < f2 ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

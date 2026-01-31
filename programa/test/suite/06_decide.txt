@@ -1,0 +1,22 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 06: DECIDE (IF/ELSE) ---" ? endl
+    
+    local int val = 10 endl
+    
+    decide of
+        val > 5 -> ¡ show ¿ "10 > 5 (Correct)" ? endl !
+    else -> ¡
+        show ¿ "Else (Incorrect)" ? endl
+    !
+    end decide endl
+    
+    val = 2 endl
+    decide of
+        val > 5 -> ¡ show ¿ "2 > 5 (Incorrect)" ? endl !
+    else -> ¡
+        show ¿ "Else executed (Correct)" ? endl
+    !
+    end decide endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

@@ -1,0 +1,23 @@
+gift int suma ¿ int a, int b ? ¡
+    return a + b endl
+!
+
+gift int max ¿ int a, int b ? ¡
+    decide of
+        a > b -> ¡ return a endl !
+    else -> ¡ return b endl !
+    end decide endl
+    return 0 endl | Fallback
+!
+
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 09: FUNCTIONS ---" ? endl
+    
+    local int s = suma ¿ 10, 20 ? endl
+    show ¿ "sum(10, 20) = 30:" ? endl show ¿ s ? endl
+    
+    local int m = max ¿ 50, 10 ? endl
+    show ¿ "max(50, 10) = 50:" ? endl show ¿ m ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

@@ -1,0 +1,25 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 01: ARITHMETIC ---" ? endl
+    
+    | Integer Operations
+    local int a = 10 endl
+    local int b = 3 endl
+    show ¿ "10 + 3 =" ? endl show ¿ a + b ? endl
+    show ¿ "10 - 3 =" ? endl show ¿ a - b ? endl
+    show ¿ "10 * 3 =" ? endl show ¿ a * b ? endl
+    show ¿ "10 / 3 =" ? endl show ¿ a / b ? endl | Division entera
+    
+    | Float Operations
+    local float x = 10.5 endl
+    local float y = 2.5 endl
+    show ¿ "10.5 + 2.5 =" ? endl show ¿ x + y ? endl
+    show ¿ "10.5 - 2.5 =" ? endl show ¿ x - y ? endl
+    show ¿ "10.5 * 2.5 =" ? endl show ¿ x * y ? endl
+    show ¿ "10.5 / 2.5 =" ? endl show ¿ x / y ? endl
+    
+    | Mixed Operations (Promocion)
+    show ¿ "10 + 2.5 =" ? endl show ¿ a + y ? endl
+    show ¿ "10 * 2.5 =" ? endl show ¿ a * y ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

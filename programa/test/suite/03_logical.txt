@@ -1,0 +1,19 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 03: LOGICAL ---" ? endl
+    
+    local boolean t = true endl
+    local boolean f = false endl
+    
+    show ¿ "true and true (true):" ? endl show ¿ t @ t ? endl
+    show ¿ "true and false (false):" ? endl show ¿ t @ f ? endl
+    show ¿ "true or false (true):" ? endl show ¿ t ~ f ? endl
+    show ¿ "false or false (false):" ? endl show ¿ f ~ f ? endl
+    show ¿ "not true (false):" ? endl show ¿ Σ t ? endl
+    show ¿ "not false (true):" ? endl show ¿ Σ f ? endl
+    
+    | Complex
+    show ¿ "(true or false) and true (true):" ? endl
+    show ¿ (t ~ f) @ t ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

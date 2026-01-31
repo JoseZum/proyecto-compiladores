@@ -1,0 +1,19 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 04: ASSIGNMENT ---" ? endl
+    
+    local int x = 0 endl
+    show ¿ "Init x = 0:" ? endl show ¿ x ? endl
+    
+    x = 10 endl
+    show ¿ "Assign x = 10:" ? endl show ¿ x ? endl
+    
+    x = x + 5 endl
+    show ¿ "x = x + 5 (15):" ? endl show ¿ x ? endl
+    
+    | Chained assignment implicitly via value usage
+    local int y = 20 endl
+    y = x endl
+    show ¿ "y = x (15):" ? endl show ¿ y ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

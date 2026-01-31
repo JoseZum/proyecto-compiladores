@@ -1,0 +1,19 @@
+gift int fibonacci ¿ int n ? ¡
+    decide of
+        n == 0 -> ¡ return 0 endl !
+        n == 1 -> ¡ return 1 endl !
+    else -> ¡ 
+        return fibonacci ¿ n - 1 ? + fibonacci ¿ n - 2 ? endl
+    !
+    end decide endl
+    return 0 endl
+!
+
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 10: RECURSION ---" ? endl
+    
+    local int f = fibonacci ¿ 6 ? endl
+    show ¿ "Fibonacci(6) = 8:" ? endl show ¿ f ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

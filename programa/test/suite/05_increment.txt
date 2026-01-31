@@ -1,0 +1,18 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 05: INCREMENT/DECREMENT ---" ? endl
+    
+    local int i = 0 endl
+    show ¿ "Init i = 0:" ? endl show ¿ i ? endl
+    
+    i = i + 1 endl
+    show ¿ "i = i + 1 (1):" ? endl show ¿ i ? endl
+    
+    | Note: Language grammar has ++pre and --pre support from parser.cup
+    ++i endl
+    show ¿ "++i (2):" ? endl show ¿ i ? endl
+    
+    --i endl
+    show ¿ "--i (1):" ? endl show ¿ i ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

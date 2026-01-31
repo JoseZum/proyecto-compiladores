@@ -1,0 +1,20 @@
+coal navidad ¿ ? ¡
+    show ¿ "--- TEST 11: ARRAYS ---" ? endl
+    
+    local int arr[2][2] endl
+    
+    arr[0][0] = 1 endl
+    arr[0][1] = 2 endl
+    arr[1][0] = 3 endl
+    arr[1][1] = 4 endl
+    
+    show ¿ "arr[0][0] (1):" ? endl show ¿ arr[0][0] ? endl
+    show ¿ "arr[1][1] (4):" ? endl show ¿ arr[1][1] ? endl
+    
+    | Initialized array
+    local int mat[2][2] = ¡¡10, 20¡, ¡30, 40¡! endl
+    
+    show ¿ "mat[0][1] (20):" ? endl show ¿ mat[0][1] ? endl
+
+    show ¿ "--- PASSED ---" ? endl
+!

@@ -497,7 +497,7 @@ non terminal expr_aritm, term, power, factor;
 non terminal expr_relacional, expresion_rel, operador_rel;
 non terminal expr_logica, expr_and, expr_not, expr_bool;
 non terminal loop_start, for_start, main_start;
-non terminal io, show, show_arg, get, get_target;
+non terminal io, show, show_arg, get, get_target, decide_header;
 
 /*
 ----------INICIO----------*/
