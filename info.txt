@@ -13,10 +13,10 @@ Número de carnet de los estudiantes:
 2023029575
 
 Número de proyecto programado:
-Proyecto Programado #2 analizador sintactico
+Proyecto Programado #3 traductor de C3D a MIPS
 
 Fecha de entrega:
-17/01/2026
+02/02/2026
 
 Estatus de la entrega:
 Superior

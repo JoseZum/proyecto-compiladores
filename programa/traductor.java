@@ -2,27 +2,18 @@ import java.util.*;
 import java.io.*;
 
 /**
- * Traductor de Código de Tres Direcciones (C3D) a MIPS.
- * Esta versión contiene la estructura completa (esqueleto) para todas
- * las instrucciones posibles de la gramática.
+ * clase para traducir el codigo de tres direcciones al MIPS
  */
 public class traductor {
-    // Almacena el código C3D original que recibe el constructor
-    private String c3d;
-    // StringBuilder principal donde se ensambla el código MIPS final
-    private StringBuilder mips;
-    // Set para almacenar nombres de variables (t1, t2, x, y...) y declararlas en
-    // .data
-    private HashSet<String> variables;
-    // Mapa para gestionar strings literales: "hola" -> "str1" para reutilizarlos
-    private Map<String, String> strings;
-    // Contador para generar etiquetas únicas p_ara los strings (str1, str2...)
-    private int stringCount = 0;
+
+    private String c3d; // contiene el codigo de tres direcciones
+    private StringBuilder mips; // builder para guardar el codigo traducido
+    private HashSet<String> variables; // hash para guardar las variables
+    private Map<String, String> strings; // map para literales strings
+    private int stringCount = 0; // contador para ver cuantos strings se han generado y darles etiquetas unicas
     // Mapa que almacena la cantidad de columnas de cada arreglo declarado (para
     // cálculos de índice)
-    private Map<String, Integer> arrayCols; // Para guardar la dimension 2 (columnas)
-    // Mapa que almacena el tamaño total en bytes de cada arreglo para reservarlo en
-    // .data
+    private Map<String, Integer> arrayCols; //
     private Map<String, Integer> arraySizes; // Para guardar el tamaño total en bytes
 
     // Buffer para acumular las instrucciones correspondientes a la función 'main'
@@ -123,6 +114,35 @@ public class traductor {
             return str.replaceAll("^\"+", "").replaceAll("\"+$", "");
         }
         return null; // Si no hay string válido
+    }
+
+    private int parseCharLiteral(String val) {
+        // Val viene como 'A' o '\n'
+        String content = val.substring(1, val.length() - 1);
+        if (content.startsWith("\\")) {
+            if (content.length() > 1) {
+                char esc = content.charAt(1);
+                switch (esc) {
+                    case 'n':
+                        return 10;
+                    case 't':
+                        return 9;
+                    case 'r':
+                        return 13;
+                    case '0':
+                        return 0;
+                    case '\\':
+                        return 92;
+                    case '\'':
+                        return 39;
+                    case '"':
+                        return 34;
+                }
+            }
+        }
+        if (content.length() > 0)
+            return (int) content.charAt(0);
+        return 0;
     }
 
     // Verifica si un token es una palabra reservada del C3D o instrucción, para no
@@ -263,7 +283,16 @@ public class traductor {
         mips.append("    jr $ra\n");
         mips.append(".end readString\n\n");
 
-        mips.append("readChar:\n    li $v0, 12\n    syscall\n    jr $ra\n.end readChar\n\n"); // Lee char a $v0
+        mips.append("readChar:\n");
+        mips.append("    li $v0, 12\n");
+        mips.append("    syscall\n");
+        // Skip whitespace logic? The user might want to read ANY char.
+        // But for "get" behavior usually we want to skip newlines from previous input.
+        // A simple fix for interactive programs is to ignore CR/LF/Space
+        mips.append("    # Optional: Skip whitespace (Space, Tab, Newline)\n");
+        mips.append("    # ble $v0, 32, readChar\n    ble $v0, 32, readChar\n");
+        mips.append("    jr $ra\n");
+        mips.append(".end readChar\n\n");
 
         // Subrutina para calcular potencia entera
         mips.append("pow:\n");
@@ -799,8 +828,8 @@ public class traductor {
             currentBuffer.append("    li ").append(reg).append(", 0\n");
         } else if (val.startsWith("'")) {
             // Char literal 'A' -> convertir a ASCII
-            char c = val.charAt(1);
-            currentBuffer.append("    li ").append(reg).append(", ").append((int) c).append("\n");
+            int ascii = parseCharLiteral(val);
+            currentBuffer.append("    li ").append(reg).append(", ").append(ascii).append("\n");
         } else if (val.startsWith("\"")) {
             // String literal "Hola" -> Cargar dirección (Load Address)
             String content = extraerString(val);

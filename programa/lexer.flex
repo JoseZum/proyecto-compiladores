@@ -90,7 +90,7 @@ import java_cup.runtime.*;
 0|[1-9][0-9]* { return new Symbol(sym.INT_LIT, yyline+1, yycolumn+1, yytext()); }
 (0|[1-9][0-9]*) "." [0-9]+ { return new Symbol(sym.FLOAT_LIT, yyline+1, yycolumn+1, yytext()); }
 "true" | "false" { return new Symbol(sym.BOOLEAN_LIT, yyline+1, yycolumn+1, yytext()); }
-\' [^\' ] \' { return new Symbol(sym.CHAR_LIT, yyline+1, yycolumn+1, yytext()); }
+\' ([^'\\\n\r] | \\[ntr\\'\"])? \' { return new Symbol(sym.CHAR_LIT, yyline+1, yycolumn+1, yytext()); }
 \" [^\"]* \" { return new Symbol(sym.STRING_LIT, yyline+1, yycolumn+1, yytext()); }
 
 /* Identificadores */

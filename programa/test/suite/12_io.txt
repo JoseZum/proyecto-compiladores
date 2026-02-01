@@ -19,7 +19,7 @@ coal navidad ¿ ? ¡
     get ¿ f ? endl
     show ¿ "Leido:" ? endl show ¿ f ? endl
 
-    local char c = ' ' endl
+    local char c = '' endl
     show ¿ "Ingrese Char:" ? endl
     get ¿ c ? endl
     show ¿ "Leido:" ? endl show ¿ c ? endl
