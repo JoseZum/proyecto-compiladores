@@ -1811,8 +1811,27 @@ factor ::= literal:l
 expr_relacional ::= expresion_rel:e1 operador_rel:op expresion_rel:e2
     {:
         String t = checkRelational(((Nodo)e1).getTipo(), ((Nodo)e2).getTipo(), (String)op, e1left, e1right);
+        String finalOp = (String)op;
+        
+        // Manejo de comparaciones con flotantes
+        // Si alguno es float, convetir el otro a float y usar operador float (e.g. "<f")
+        boolean isFloat = "float".equals(((Nodo)e1).getTipo()) || "float".equals(((Nodo)e2).getTipo());
+        if (isFloat) {
+             finalOp = op + "f"; // e.g. "<f", "==f"
+             if ("int".equals(((Nodo)e1).getTipo())) {
+                 String c = newTemp();
+                 emit(c + " = (float) " + ((Nodo)e1).getDir());
+                 ((Nodo)e1).setDir(c);
+             }
+             if ("int".equals(((Nodo)e2).getTipo())) {
+                 String c = newTemp();
+                 emit(c + " = (float) " + ((Nodo)e2).getDir());
+                 ((Nodo)e2).setDir(c);
+             }
+        }
+
         String temp = newTemp();
-        emit(temp + " = " + ((Nodo)e1).getDir() + " " + (String)op + " " + ((Nodo)e2).getDir());
+        emit(temp + " = " + ((Nodo)e1).getDir() + " " + finalOp + " " + ((Nodo)e2).getDir());
         Nodo n = new Nodo(op);
         n.addHijo((Nodo)e1);
         n.addHijo((Nodo)e2);

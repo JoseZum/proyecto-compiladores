@@ -173,22 +173,28 @@ public class traductor {
     /**
      * SECCIÓN .DATA: Declaración de variables y constantes.
      * Genera el código MIPS para reservar memoria estática.
+     * En MIPS, todas las variables globales deben declararse aquí.
      */
     private void generarDataSection() {
-        mips.append(".data\n");
-        mips.append("    _input_buffer: .space 256\n"); // Buffer global para lecturas de string
-        mips.append("    newline: .asciiz \"\\n\"\n"); // Constante para salto de línea
+        mips.append(".data\n"); // Directiva: inicia segmento de datos
+        mips.append("    _input_buffer: .space 256\n"); // .space: reserva 256 bytes sin inicializar (para buffer de
+                                                        // entrada)
+        mips.append("    newline: .asciiz \"\\n\"\n"); // .asciiz: string terminado en null
 
         mips.append("    # --- Strings Literales ---\n");
         // Iterar sobre mapa de strings literales encontrados
         for (Map.Entry<String, String> entry : strings.entrySet()) {
             // Definir cada string: label: .asciiz "texto"
+            // Las etiquetas permiten referenciar estos strings con instrucción 'la' (Load
+            // Address)
             mips.append("    ").append(entry.getValue()).append(": .asciiz \"")
                     .append(entry.getKey()).append("\"\n");
         }
 
         // Alinear memoria a palabra (4 bytes) antes de declarar arrays para evitar
         // errores de alineación
+        // MIPS requiere que datos de 4 bytes (word) empiecen en direcciones múltiplos
+        // de 4
         mips.append("    .align 2\n");
         mips.append("    # --- Arrays ---\n");
         // Declarar espacio para arrays
@@ -201,6 +207,7 @@ public class traductor {
         mips.append("    .align 2\n");
         mips.append("    # --- Variables y Temporales ---\n");
         // Declarar cada variable encontrada como una palabra (.word) inicializada en 0
+        // .word reserva 4 bytes (32 bits), tamaño estándar para int/float/puntero
         for (String var : variables) {
             mips.append("    v_").append(var).append(": .word 0\n");
         }
@@ -212,10 +219,10 @@ public class traductor {
      * Genera el código ejecutable.
      */
     private void generarTextSection() {
-        mips.append(".text\n"); // Inicio sección código
+        mips.append(".text\n"); // Directiva: inicia segmento de código (instrucciones)
 
-        mips.append(".globl main\n\n"); // Declarar main global
-        mips.append("main:\n"); // Etiqueta main
+        mips.append(".globl main\n\n"); // Hace visible la etiqueta 'main' para el linker/cargador
+        mips.append("main:\n"); // Etiqueta de entrada del programa (Punto de inicio)
         // El flujo del programa caerá naturalmente hacia las instrucciones iniciales o
         // 'main:' (etiquetas de usuario)
 
@@ -231,10 +238,13 @@ public class traductor {
 
         // Generar salida del sistema (exit) al final del main para terminar limpiamente
         mips.append("\n    # Fin del programa (Exit)\n");
-        mips.append("    li $v0, 10\n"); // Syscall 10 = exit
+        // Syscall 10: Terminar ejecución. Es fundamental para evitar que el PC siga
+        // ejecutando basura.
+        mips.append("    li $v0, 10\n");
         mips.append("    syscall\n\n");
 
-        // Después del exit, colocar el código de las funciones (subrutinas)
+        // Después del exit, colocar el código de las funciones (subrutinas) definido
+        // por el usuario
         mips.append(funcMips);
 
         // Finalmente, añadir rutinas de soporte ("runtime")
@@ -254,8 +264,11 @@ public class traductor {
         mips.append("showChar:\n    li $v0, 11\n    syscall\n    jr $ra\n.end showChar\n\n");
 
         // Rutinas de lectura
-        mips.append("readInt:\n    li $v0, 5\n    syscall\n    jr $ra\n.end readInt\n\n"); // Lee int a $v0
-        mips.append("readFloat:\n    li $v0, 6\n    syscall\n    jr $ra\n.end readFloat\n\n"); // Lee float a $f0
+        // Syscall 5: read_int (lee un entero de la entrada estándar al registro $v0)
+        mips.append("readInt:\n    li $v0, 5\n    syscall\n    jr $ra\n.end readInt\n\n");
+
+        // Syscall 6: read_float (lee un float de la entrada estándar al registro $f0)
+        mips.append("readFloat:\n    li $v0, 6\n    syscall\n    jr $ra\n.end readFloat\n\n");
 
         // Rutina compleja para leer Strings
         mips.append("readString:\n");
@@ -283,12 +296,10 @@ public class traductor {
         mips.append("    jr $ra\n");
         mips.append(".end readString\n\n");
 
+        // Syscall 12: read_char (lee un caracter al registro $v0)
         mips.append("readChar:\n");
         mips.append("    li $v0, 12\n");
         mips.append("    syscall\n");
-        // Skip whitespace logic? The user might want to read ANY char.
-        // But for "get" behavior usually we want to skip newlines from previous input.
-        // A simple fix for interactive programs is to ignore CR/LF/Space
         mips.append("    # Optional: Skip whitespace (Space, Tab, Newline)\n");
         mips.append("    # ble $v0, 32, readChar\n    ble $v0, 32, readChar\n");
         mips.append("    jr $ra\n");
@@ -298,11 +309,11 @@ public class traductor {
         mips.append("pow:\n");
         mips.append("    li $v0, 1\n"); // Resultado inicial = 1
         mips.append("_pow_loop:\n");
-        mips.append("    blez $a1, _pow_end\n"); // Si exponente <= 0, fin
-        mips.append("    mul $v0, $v0, $a0\n"); // Mult base
-        mips.append("    sub $a1, $a1, 1\n"); // Decr exponente
-        mips.append("    j _pow_loop\n");
-        mips.append("_pow_end:\n    jr $ra\n.end pow\n\n");
+        mips.append("    blez $a1, _pow_end\n"); // Branch if Less or Equal to Zero: si exponente <= 0, salta al fin
+        mips.append("    mul $v0, $v0, $a0\n"); // Multiply: $v0 = $v0 * $a0 (resultado * base)
+        mips.append("    sub $a1, $a1, 1\n"); // Subtract: decrementa exponente
+        mips.append("    j _pow_loop\n"); // Jump: salta incondicionalmente al inicio del bucle
+        mips.append("_pow_end:\n    jr $ra\n.end pow\n\n"); // Jump Register: Retorna a la dirección guardada en $ra
     }
 
     /**
@@ -529,56 +540,131 @@ public class traductor {
 
             switch (op) {
                 case "+":
+                    // add: suma enteros con signo (genera excepción si overflow)
                     currentBuffer.append("    add $t2, $t0, $t1\n");
                     break;
                 case "-":
+                    // sub: resta enteros
                     currentBuffer.append("    sub $t2, $t0, $t1\n");
                     break;
                 case "*":
+                    // mul: multiplicación entera (resultado en registro destino)
                     currentBuffer.append("    mul $t2, $t0, $t1\n");
                     break;
                 case "/":
                 case "//":
+                    // div: división entera con signo
                     currentBuffer.append("    div $t2, $t0, $t1\n");
                     break;
                 case "%":
+                    // rem: resto de división entera
                     currentBuffer.append("    rem $t2, $t0, $t1\n");
-                    break; // Modulo
+                    break;
                 // Operadores relacionales (generan 1 o 0)
                 case "==":
+                    // seq (Set EQual): $t2 = 1 si $t0 == $t1, sino 0
                     currentBuffer.append("    seq $t2, $t0, $t1\n");
-                    break; // Set Equal chido
+                    break;
                 case "!=":
+                    // sne (Set Not Equal): $t2 = 1 si $t0 != $t1, sino 0
                     currentBuffer.append("    sne $t2, $t0, $t1\n");
-                    break; // Set Not Equal
+                    break;
                 case ">":
+                    // sgt (Set Greater Than): $t2 = 1 si $t0 > $t1, sino 0
                     currentBuffer.append("    sgt $t2, $t0, $t1\n");
                     break;
                 case "<":
+                    // slt (Set Less Than): $t2 = 1 si $t0 < $t1, sino 0
                     currentBuffer.append("    slt $t2, $t0, $t1\n");
                     break;
                 case ">=":
+                    // sge (Set Greater Equal): $t2 = 1 si $t0 >= $t1, sino 0
                     currentBuffer.append("    sge $t2, $t0, $t1\n");
                     break;
                 case "<=":
+                    // sle (Set Less Equal): $t2 = 1 si $t0 <= $t1, sino 0
                     currentBuffer.append("    sle $t2, $t0, $t1\n");
                     break;
-                // Lógicos bitwise
+                // Lógicos bitwise (actúan bit a bit)
                 case "and":
+                    // and: AND lógico bit a bit
                     currentBuffer.append("    and $t2, $t0, $t1\n");
                     break;
                 case "or":
+                    // or: OR lógico bit a bit
                     currentBuffer.append("    or $t2, $t0, $t1\n");
                     break;
                 case "^": // Potencia
                     currentBuffer.append("    # Potencia usando subrutina\n");
-                    currentBuffer.append("    move $a0, $t0\n"); // Base
-                    currentBuffer.append("    move $a1, $t1\n"); // Esp
-                    currentBuffer.append("    jal _pow\n"); // Llamar funcion interna pow
-                    currentBuffer.append("    move $t2, $v0\n"); // Resultado
+                    currentBuffer.append("    move $a0, $t0\n"); // move: copia registro $t0 a argumento $a0
+                    currentBuffer.append("    move $a1, $t1\n"); // move: copia registro $t1 a argumento $a1
+                    currentBuffer.append("    jal _pow\n"); // jal (Jump And Link): llama a función y guarda retorno en
+                                                            // $ra
+                    currentBuffer.append("    move $t2, $v0\n"); // move: copia resultado en $v0 a $t2
+                    break;
+                // --- RELACIONALES FLOAT ---
+                case "==f":
+                case "!=f":
+                case "<f":
+                case "<=f":
+                case ">f":
+                case ">=f":
+                    // 1. Cargar operandos float (usamos tokens[0] y tokens[2] del split original)
+                    String fOp1 = tokens[0];
+                    String fOp2 = tokens[2];
+                    cargarEnRegistroFloat("$f0", fOp1);
+                    cargarEnRegistroFloat("$f1", fOp2);
+
+                    // 2. Ejecutar comparación
+                    switch (op) {
+                        case "==f":
+                            currentBuffer.append("    c.eq.s $f0, $f1\n"); // Check equal
+                            break;
+                        case "<f":
+                            currentBuffer.append("    c.lt.s $f0, $f1\n"); // Check less than
+                            break;
+                        case "<=f":
+                            currentBuffer.append("    c.le.s $f0, $f1\n"); // Check less equal
+                            break;
+                        case "!=f":
+                            currentBuffer.append("    c.eq.s $f0, $f1\n"); // Check equal (invertiremos)
+                            break;
+                        case ">f":
+                            // a > b <==> b < a
+                            currentBuffer.append("    c.lt.s $f1, $f0\n");
+                            break;
+                        case ">=f":
+                            // a >= b <==> b <= a
+                            currentBuffer.append("    c.le.s $f1, $f0\n");
+                            break;
+                    }
+
+                    // 3. Convertir Flag a Entero (1 o 0) en $t2
+                    String lblTrue = "L_F_TRUE_" + (++stringCount); // Reusamos contador para label unico
+                    String lblEnd = "L_F_END_" + stringCount;
+
+                    if (op.equals("!=f")) {
+                        // Para !=, si EQ es false (Code=0), es true. Si EQ es true (Code=1), es false.
+                        currentBuffer.append("    bc1f ").append(lblTrue).append("\n"); // Si es falso que son iguales,
+                                                                                        // entonces != es true
+                    } else {
+                        // Para ==, <, <=, ... si cc es true, vamos a true
+                        currentBuffer.append("    bc1t ").append(lblTrue).append("\n");
+                    }
+
+                    // Caso Falso
+                    currentBuffer.append("    li $t2, 0\n");
+                    currentBuffer.append("    j ").append(lblEnd).append("\n");
+
+                    // Caso Verdadero
+                    currentBuffer.append(lblTrue).append(":\n");
+                    currentBuffer.append("    li $t2, 1\n");
+
+                    currentBuffer.append(lblEnd).append(":\n");
                     break;
             }
-            currentBuffer.append("    sw $t2, v_").append(res).append("\n"); // Guardar resultado
+            // sw (Store Word): guarda valor de registro $t2 en memoria (variable)
+            currentBuffer.append("    sw $t2, v_").append(res).append("\n");
         }
         // Operaciones unarias (not)
         else if (tokens.length == 2) {
@@ -611,7 +697,7 @@ public class traductor {
         String label = tokens[3]; // Etiqueta destino
 
         cargarEnRegistro("$t0", cond);
-        // Si $t0 no es zero (true), saltar
+        // bnez (Branch if Not Equal Zero): Si $t0 != 0 (verdadero), salta a label
         currentBuffer.append("    bnez $t0, ").append(label).append("\n");
     }
 
@@ -624,7 +710,7 @@ public class traductor {
         String label = tokens[3];
 
         cargarEnRegistro("$t0", cond);
-        // Si $t0 es zero (false), saltar
+        // beqz (Branch if EQual Zero): Si $t0 == 0 (falso), salta a label
         currentBuffer.append("    beqz $t0, ").append(label).append("\n");
     }
 
@@ -780,11 +866,14 @@ public class traductor {
         currentBuffer.append("    jal ").append(func).append("\n");
 
         // Limpieza de parámetros de la pila (quitar n argumentos)
+        // La convención C estándar dice que el llamador limpia la pila
         if (linea.contains(",")) {
             String[] callParts = linea.split(",");
             try {
                 int nParams = Integer.parseInt(callParts[1].trim());
                 if (nParams > 0) {
+                    // addu $sp: Incrementa puntero de pila para "liberar" espacio (la pila crece
+                    // hacia abajo en memoria)
                     currentBuffer.append("    addu $sp, $sp, ").append(nParams * 4).append(" # Limpiar ")
                             .append(nParams)
                             .append(" params\n");
@@ -805,12 +894,22 @@ public class traductor {
         StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         currentBuffer.append("\n    # Retorno de función\n");
         if (val != null) {
-            cargarEnRegistro("$v0", val); // Poner valor de retorno en $v0 (convención MIPS)
+            if (val.matches("-?\\d+\\.\\d+")) {
+                cargarEnRegistroFloat("$f0", val);
+            } else {
+                cargarEnRegistro("$v0", val); // Poner valor de retorno en $v0 (convención MIPS)
+            }
         }
-        currentBuffer.append("    # Restaurar $ra y Frame\n");
-        currentBuffer.append("    lw $ra, ($sp)\n"); // Recuperar dirección de retorno guardada en prologo
-        currentBuffer.append("    addu $sp, $sp, 4\n"); // Liberar espacio del RA
-        currentBuffer.append("    jr $ra\n"); // Retornar al llamante
+        if (inFunction) {
+            currentBuffer.append("    # Restaurar $ra y Frame\n");
+            currentBuffer.append("    lw $ra, ($sp)\n"); // Recuperar dirección de retorno guardada en prologo
+            currentBuffer.append("    addu $sp, $sp, 4\n"); // Liberar espacio del RA
+            currentBuffer.append("    jr $ra\n"); // Retornar al llamante
+        } else {
+            currentBuffer.append("    # Fin de Main (Exit)\n");
+            currentBuffer.append("    li $v0, 10\n");
+            currentBuffer.append("    syscall\n");
+        }
     }
 
     /**
@@ -888,6 +987,9 @@ public class traductor {
 
     // Calcula la dirección del elemento arr[i][j] y la pone en regDest
     // Fórmula: DirBase + ((i * Columnas) + j) * 4
+    // Calcula la dirección del elemento arr[i][j] y la pone en regDest
+    // Fórmula: DirBase + ((i * Columnas) + j) * 4
+    // * 4 porque cada elemento int/float ocupa 4 bytes
     private void procesarDireccionArreglo(String acceso, String regDest) {
         StringBuilder currentBuffer = inFunction ? funcMips : mainMips;
         // acceso tiene la forma: arr[i][j]
@@ -914,12 +1016,16 @@ public class traductor {
         currentBuffer.append("    add $t1, $t1, $t2\n"); // $t1 = (i * cols) + j
 
         // Multiplicar por 4 (tamaño de entero en bytes)
+        // MIPS direcciona por bytes. Para acceder al indice K de un array de enteros,
+        // offset = K * 4
         currentBuffer.append("    mul $t1, $t1, 4\n");
 
         // Cargar dirección base del array en el registro destino
+        // la (Load Address): carga la dirección de memoria donde empieza 'v_arrName'
         currentBuffer.append("    la ").append(regDest).append(", v_").append(arrName).append("\n");
 
-        // Sumar el offset a la dirección base
+        // Sumar el offset a la dirección base para obtener la direción efectiva del
+        // elemento
         currentBuffer.append("    add ").append(regDest).append(", ").append(regDest).append(", $t1\n");
     }
 
