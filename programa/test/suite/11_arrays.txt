@@ -12,7 +12,7 @@ coal navidad ¿ ? ¡
     show ¿ "arr[1][1] (4):" ? endl show ¿ arr[1][1] ? endl
     
     | Initialized array
-    local int mat[2][2] = ¡¡10, 20¡, ¡30, 40¡! endl
+    local int mat[2][2] = ¡¡10, 20!, ¡30, 40!! endl
     
     show ¿ "mat[0][1] (20):" ? endl show ¿ mat[0][1] ? endl
 

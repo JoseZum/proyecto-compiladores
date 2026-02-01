@@ -119,6 +119,38 @@ parser code {:
         System.err.println(msg);
     }
 
+    // Método para generar C3D de inicialización de arreglos
+    private void generarInicializacionArreglo(String id, Nodo initNode) {
+        // initNode es "arreglo_init" -> tiene hijo "filas"
+        if (initNode.hijos.isEmpty()) return;
+        Nodo filasNode = initNode.hijos.get(0); // Nodo "filas"
+        
+        int row = 0;
+        // Iterar sobre los hijos de "filas" (fila, ",", fila, ...)
+        for (Nodo hijoFila : filasNode.hijos) {
+            String lex = hijoFila.lexema;
+            if (lex != null && lex.equals(",")) continue; // Saltar comas
+            
+            // hijoFila es "fila" -> tiene hijo "elementos"
+             if (hijoFila.hijos.isEmpty()) continue;
+            Nodo elementosNode = hijoFila.hijos.get(0); // Nodo "elementos"
+            
+            int col = 0;
+            // Iterar sobre hijos de "elementos" (literal, ",", literal...)
+            for (Nodo hijoElem : elementosNode.hijos) {
+                 lex = hijoElem.lexema;
+                 if (lex != null && lex.equals(",")) continue;
+                 
+                 // hijoElem es el literal (INT_LIT, CHAR_LIT, etc)
+                 // Generar: id[row][col] = val
+                 String val = hijoElem.lexema; // Ojo: si es char tiene comillas
+                 emit(id + "[" + row + "][" + col + "] = " + val);
+                 col++;
+            }
+            row++;
+        }
+    }
+
     /* Visibilidad hacia arriba:
     busca una expresion o funcion siguiendo la jerarquia de scopes
     Si el simbolo no está en el current, sube al papa, y asi hasta encontrarlo o llegar a world y poner null
@@ -1353,6 +1385,10 @@ creacion_arreglo ::=
             declNode.addHijo((Nodo)dm);
             n.addHijo(declNode);
             n.addHijo((Nodo)init);
+            
+            // NUEVO: Generar asignaciones para los valores iniciales
+            generarInicializacionArreglo(idStr, (Nodo)init);
+
             RESULT = n;
         :}
     | alcance error ENDL
