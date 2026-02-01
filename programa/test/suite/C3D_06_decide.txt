@@ -1,0 +1,26 @@
+# MAIN navidad
+navidad:
+print_string "--- TEST 06: DECIDE (IF/ELSE) ---"
+val = 10
+t1 = val > 5
+ifFalse t1 goto L2
+print_string "10 > 5 (Correct)"
+goto L1
+L2:
+# ELSE
+print_string "Else (Incorrect)"
+L1:
+# DECIDE fin
+val = 2
+t2 = val > 5
+ifFalse t2 goto L4
+print_string "2 > 5 (Incorrect)"
+goto L3
+L4:
+# ELSE
+print_string "Else executed (Correct)"
+L3:
+# DECIDE fin
+print_string "--- PASSED ---"
+# END MAIN
+

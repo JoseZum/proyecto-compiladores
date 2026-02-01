@@ -57,6 +57,9 @@ parser code {:
 
     // Pila de scopes activos (jerarquía actual)
     Deque<String> scopeStack = new ArrayDeque<>();
+    
+    // Pila de etiquetas de fin de decide (para fallthrough)
+    Stack<String> decideExitLabels = new Stack<>();
 
     // Lista de errores semánticos y sintácticos encontrados
     ArrayList<String> errores = new ArrayList<>();
@@ -402,7 +405,21 @@ parser code {:
 
     // Genera un nuevo temporal único
     String newTemp() {
-        return "t" + (++tempCount);
+        String t = "t" + (++tempCount);
+        // Si estamos en una función (no world), registramos el temporal como variable local ("VAR")
+        // Esto permite que 'getActiveLocals()' lo detecte y 'func_call' genere 'save_local tX'
+        if (!"world".equals(currentScope())) {
+             try {
+                // Solo si no existe ya (aunque tempCount garantiza unicidad)
+                if (!existsInCurrent(t)) {
+                    // Usamos dummy values para line/col ya que es interno
+                    declareInScope(currentScope(), t, new SymInfo("VAR", "int", 0, 0));
+                }
+             } catch (Exception e) {
+                 // Ignorar errores de duplicado si ocurrieran
+             }
+        }
+        return t;
     }
 
     // Genera una nueva etiqueta única
@@ -529,7 +546,7 @@ non terminal expr_aritm, term, power, factor;
 non terminal expr_relacional, expresion_rel, operador_rel;
 non terminal expr_logica, expr_and, expr_not, expr_bool;
 non terminal loop_start, for_start, main_start;
-non terminal io, show, show_arg, get, get_target, decide_header;
+non terminal io, show, show_arg, get, get_target, decide_start;
 
 /*
 ----------INICIO----------*/
@@ -1270,6 +1287,11 @@ caso ::=
       :}
       bloque:b
       {:
+          // Salto al final del decide para evitar fallthrough
+          if (!decideExitLabels.isEmpty()) {
+               emit("goto " + decideExitLabels.peek());
+          }
+          
           String lblNext = loopEndLabels.pop();
           emit(lblNext + ":");
           Nodo n=new Nodo("caso");
@@ -1288,21 +1310,33 @@ caso ::=
     ;
 
 // DECIDE OF - cada caso tiene su propio scope
+// DECIDE OF - cada caso tiene su propio scope
+
+// Header común para generar la etiqueta
+decide_start ::= DECIDE OF 
+      {: 
+          decideExitLabels.push(newLabel()); 
+      :};
+
 decide_of ::=
-      DECIDE OF casos:cs END DECIDE ENDL
+      decide_start casos:cs END DECIDE ENDL
       {:
+          String lblExit = decideExitLabels.pop();
+          emit(lblExit + ":");
           emit("# DECIDE fin");
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
           RESULT=n;
       :}
-    | DECIDE OF casos:cs ELSE ARROW
+    | decide_start casos:cs ELSE ARROW
       {:
           pushAutoScope("else");
           emit("# ELSE");
       :}
       bloque:b END DECIDE ENDL
       {:
+          String lblExit = decideExitLabels.pop();
+          emit(lblExit + ":");
           emit("# DECIDE fin");
           Nodo n=new Nodo("decide_of");
           n.addHijo((Nodo)cs);
@@ -1310,9 +1344,11 @@ decide_of ::=
           popScope(); // Salir del scope del else
           RESULT=n;
       :}
-    | DECIDE OF error END DECIDE ENDL
+    | decide_start error END DECIDE ENDL
       {:
           addError("[PANIC] Estructura DECIDE OF inválida, sincronizado en END DECIDE.");
+          // Limpiar pila: quitar el label que se pusheo en decide_start
+          if (!decideExitLabels.isEmpty()) decideExitLabels.pop();
           RESULT=new Nodo("decide_of_error");
       :}
     ;
