@@ -124,29 +124,24 @@ parser code {:
 
     // Método para generar C3D de inicialización de arreglos
     private void generarInicializacionArreglo(String id, Nodo initNode) {
-        // initNode es "arreglo_init" -> tiene hijo "filas"
-        if (initNode.hijos.isEmpty()) return;
-        Nodo filasNode = initNode.hijos.get(0); // Nodo "filas"
+       
+        if (initNode.hijos.isEmpty()) return; // initNode es arregloInit que despues tiene filas y despues fila y fila
+        Nodo filasNode = initNode.hijos.get(0); 
         
         int row = 0;
-        // Iterar sobre los hijos de "filas" (fila, ",", fila, ...)
+        // Iterar sobre los hijos de filas (fila, ",", fila, ...)
         for (Nodo hijoFila : filasNode.hijos) {
             String lex = hijoFila.lexema;
-            if (lex != null && lex.equals(",")) continue; // Saltar comas
-            
-            // hijoFila es "fila" -> tiene hijo "elementos"
+            if (lex != null && lex.equals(",")) continue; 
              if (hijoFila.hijos.isEmpty()) continue;
-            Nodo elementosNode = hijoFila.hijos.get(0); // Nodo "elementos"
+            Nodo elementosNode = hijoFila.hijos.get(0); 
             
             int col = 0;
-            // Iterar sobre hijos de "elementos" (literal, ",", literal...)
+            // Iterar sobre hijos de elementos (literal, ",", literal...)
             for (Nodo hijoElem : elementosNode.hijos) {
                  lex = hijoElem.lexema;
                  if (lex != null && lex.equals(",")) continue;
-                 
-                 // hijoElem es el literal (INT_LIT, CHAR_LIT, etc)
-                 // Generar: id[row][col] = val
-                 String val = hijoElem.lexema; // Ojo: si es char tiene comillas
+                 String val = hijoElem.lexema; 
                  emit(id + "[" + row + "][" + col + "] = " + val);
                  col++;
             }
@@ -270,11 +265,11 @@ parser code {:
         if (ERROR_TYPE.equals(t1) || ERROR_TYPE.equals(t2)) return ERROR_TYPE;
         if (t1 == null || t2 == null || t1.isEmpty() || t2.isEmpty()) return ERROR_TYPE;
 
-        // int con int -> int
+        
         if ("int".equals(t1) && "int".equals(t2)) return "int";
-        // float con float -> float
+        
         if ("float".equals(t1) && "float".equals(t2)) return "float";
-        // int con float o float con int -> float (promoción)
+    
         if (("int".equals(t1) && "float".equals(t2)) ||
             ("float".equals(t1) && "int".equals(t2))) return "float";
 
@@ -407,16 +402,13 @@ parser code {:
     String newTemp() {
         String t = "t" + (++tempCount);
         // Si estamos en una función (no world), registramos el temporal como variable local ("VAR")
-        // Esto permite que 'getActiveLocals()' lo detecte y 'func_call' genere 'save_local tX'
         if (!"world".equals(currentScope())) {
              try {
-                // Solo si no existe ya (aunque tempCount garantiza unicidad)
                 if (!existsInCurrent(t)) {
-                    // Usamos dummy values para line/col ya que es interno
                     declareInScope(currentScope(), t, new SymInfo("VAR", "int", 0, 0));
                 }
              } catch (Exception e) {
-                 // Ignorar errores de duplicado si ocurrieran
+
              }
         }
         return t;
@@ -448,7 +440,6 @@ parser code {:
     // Recolectar nombres de parámetros recursivamente
     void collectParamNames(Nodo node, List<String> list) {
         if (node == null) return;
-        // Access 'lexema' field directly as getNombre() does not exist
         if ("params_vacios".equals(node.lexema)) return;
         
         if ("params".equals(node.lexema)) {
@@ -479,16 +470,13 @@ parser code {:
             if (table != null) {
                 for (Map.Entry<String, SymInfo> entry : table.entrySet()) {
                     SymInfo val = entry.getValue();
-                    // Salvar VAR (local) y PARAM
                     if ("VAR".equals(val.kind) || "PARAM".equals(val.kind)) {
-                        // Evitar duplicados si hay shadowing (aunque el lenguaje quiza no lo permita, mejor prevenir)
                         if (!vars.contains(entry.getKey())) {
                             vars.add(entry.getKey());
                         }
                     }
                 }
             }
-            // Subir al scope padre
             scope = parentScope.get(scope);
         }
         return vars;
@@ -630,9 +618,6 @@ decl_top ::=
     
 /*
 ----------GLOBALES----------*/
-/* Las reglas funciones y globales ya no se usan por separado.
-   Ahora se manejan a través de declaraciones_top y decl_top */
-
 decl_global ::=
       WORLD tipo:t ID:id ENDL
       {:
@@ -672,10 +657,10 @@ decl_global ::=
     | WORLD decl_arreglo:d ENDL
        {:
            Nodo decl = (Nodo)d;
-           // decl_arreglo tiene hijos: tipo, id, dim
+           // decl_arreglo tiene hijos tipo, id, dim
            Nodo idNode = (Nodo)decl.hijos.get(1);
            Nodo dimNode = (Nodo)decl.hijos.get(2);
-           String idStr = idNode.lexema; // Ojo: decl_arreglo crea nodo con lexema ID 
+           String idStr = idNode.lexema; 
            // dim tiene hijos: d1, d2
            String d1 = ((Nodo)dimNode.hijos.get(0)).lexema;
            String d2 = ((Nodo)dimNode.hijos.get(1)).lexema;
@@ -1066,7 +1051,7 @@ sentencia ::=
     | io:i {: RESULT = i; :}
     | BREAK ENDL
       {:
-          // Generar C3D para break - saltar al final del loop más cercano
+          // Generar C3D para break Y saltar al final del loop más cercano
           if (!loopEndLabels.isEmpty()) {
               emit("goto " + loopEndLabels.peek());
           }
@@ -1148,7 +1133,7 @@ for_init ::=
       :}
     ;
 
-// FOR - con scope propio para variables declaradas en el for
+// FOR 
 for_start ::=
       FOR
       {:
@@ -1202,7 +1187,7 @@ for ::=
           n.addHijo((Nodo)cond);
           n.addHijo((Nodo)e);
           n.addHijo((Nodo)b);
-          popScope(); // Salir del scope del for
+          popScope();
           RESULT=n;
       :}
     | for_start error ENDL
@@ -1217,7 +1202,7 @@ for ::=
       :}
     ;
 
-// LOOP - con scope propio
+// LOOP 
 loop_start ::=
       LOOP
       {:
@@ -1235,7 +1220,6 @@ loop_start ::=
 loop ::=
       loop_start sentencias:s EXIT WHEN PARENTHESIS_OPEN expr_logica:cond PARENTHESIS_CLOSE ENDL END LOOP ENDL
       {:
-          // Recuperar etiquetas del loop
           String lblStart = loopStartLabels.pop();
           String lblEnd = loopEndLabels.pop();
           // Si la condición es verdadera, salir del loop
@@ -1248,7 +1232,7 @@ loop ::=
           Nodo n=new Nodo("loop");
           n.addHijo((Nodo)s);
           n.addHijo((Nodo)cond);
-          popScope(); // Salir del scope del loop
+          popScope(); 
           RESULT=n;
       :}
     | loop_start error END LOOP ENDL
@@ -1309,10 +1293,8 @@ caso ::=
       :}
     ;
 
-// DECIDE OF - cada caso tiene su propio scope
-// DECIDE OF - cada caso tiene su propio scope
+// DECIDE OF
 
-// Header común para generar la etiqueta
 decide_start ::= DECIDE OF 
       {: 
           decideExitLabels.push(newLabel()); 
@@ -1409,7 +1391,7 @@ creacion_arreglo ::=
             
             declareArr(alc, tipo, idStr, d1, d2, idleft, idright);
 
-            // EMITIR C3D PARA ARREGLO
+            // EMITIR C3D PARA ARREGLO 
             emit("array " + idStr + ", " + d1 + ", " + d2);
             
             Nodo n = new Nodo("creacion_arreglo_init");
@@ -1422,7 +1404,6 @@ creacion_arreglo ::=
             n.addHijo(declNode);
             n.addHijo((Nodo)init);
             
-            // NUEVO: Generar asignaciones para los valores iniciales
             generarInicializacionArreglo(idStr, (Nodo)init);
 
             RESULT = n;
